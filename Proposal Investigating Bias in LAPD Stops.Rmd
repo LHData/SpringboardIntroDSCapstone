@@ -1,0 +1,39 @@
+---
+title: "Proposal Investigating Bias in LAPD Stops"
+author: "Lael Hebert"
+date: "March 14, 2019"
+output: html_document
+---
+
+#Problem
+The purpose of this project is to identify areas of potential bias within vehicle and pedestrian stops made by the Los Angelos Police Department. The results of this study could be used to target areas within the LAPD that could benefit from anti-bias training. The goal would be to reduce bias and improve relations and trust between police and community. 
+
+#Client
+There are two main audiences of this analysis: the Los Angelos Police Department and citizen groups interested in police-community relations. 
+
+#Data
+1. Vehicle and Pedestrian Stop Data 2010 to Present
+     + This is the primary data set for this analysis. It contains records on over 7 million traffic stops. It includes information such as gender and ethnicity of the person stopped as well as information on the officer(s) involved in the stop. 
+    + Source: csv file from [data.gov](https://catalog.data.gov/dataset/lapd-vehicle-and-pedestrian-stops-2010-present)
+    + Additional documentation of data fields at the [City of Los Angelos website](https://data.lacity.org/A-Safe-City/Vehicle-and-Pedestrian-Stop-Data-2010-to-Present/ci25-wgt7)
+2. LAPD Reporting districts
+    + A list of the reporting districts within Los Angelos and the precinct (division) and bureau associated with each
+    + Source: csv file from [City of Los Angelos website](http://geohub.lacity.org/datasets/4398360b1a0242b78904f46b3786ae73_0)
+3. Census_Data_by_Neighborhood_Council
+    + This data set contains population counts by ethnicity for Los Angelos neighborhood based on the 2010 census. 
+    + Source: csv file from [data.gov](https://catalog.data.gov/dataset/census-data-by-neighborhood-council)
+    + Additional documentation of data fields at the [City of Los Angelos website](https://data.lacity.org/A-Livable-and-Sustainable-City/Census-Data-by-Neighborhood-Council/nwj3-ufba)
+4. Map of LAPD divisions from the Los Angelos times
+    + This is an interactive map on the [LA Times website](http://maps.latimes.com/lapd/)
+    + Clicking on a division leads to information on which neighborhoods the division patrols
+
+
+
+#Approach
+1. We'll start by calculating estimates for the distribution of ethnicities within the population of each LAPD division. We'll use the census data set and the map of LAPD divisions from the LA Times. We will assume a 50/50 gender split across the city. 
+2. Next, we'll calculate the ethnic and gender breakdown of traffic stops within each division. We'll compare these to the population distributions from step 1 in order to identify areas of potential bias. 
+3. If we find areas of potential bias in step 1, we will break down the districts further, either by reporting districts and/or by officer. 
+
+#Deliverables
+Deliverables will be R code and a report written in either powerpoint or R Markdown. 
+
