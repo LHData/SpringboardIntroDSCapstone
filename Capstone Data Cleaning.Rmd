@@ -1,0 +1,49 @@
+---
+title: "LAPD data exploration"
+author: "Lael Hebert"
+date: "March 19, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load packages
+```{r}
+library(dplyr)
+```
+
+## R Load data
+
+Start by loading all the data into R. Check structure of data. Fix column names. Set column types
+
+```{r}
+census_data <- read.csv("Census_Data_by_Neighborhood_Council.csv")
+str(census_data)
+names(census_data)[2] = "Total_pop"
+census_data$NC_Name = as.character(census_data$NC_Name)
+
+reporting_districts <- read.csv("LAPD_Reporting_Districts.csv")
+str(reporting_districts)
+#Renaming precinct to division because in other sources, it is called division
+names(reporting_districts) = c("Object_ID", "Reporting_District", "Division_number", "Division", "Bureau", "Basic_car_area", "Area", "Perimeter", "Shape_Area", "Shape_Length")
+reporting_districts$Reporting_District = as.character(reporting_districts$Reporting_District)
+
+stops_data <- read.csv("Vehicle_and_Pedestrian_Stop_Data_2010_to_Present.csv")
+str(stops_data)
+names(stops_data) = c("Stop_number", "form_reference_number", "gender_code", "ethnicity_code", "ethnicity", "Stop_date", "Stop_time", "Officer_1_Serial", "Officer_1_Division_num", "Division_1", "Officer_2_Serial", "Officer_2_Division_num", "Division_2", "Reporting_District", "Stop_Type", "Post_Stop_Activity")
+stops_data$Stop_date = as.Date(stops_data$Stop_date)
+#stops_data$Stop_time = as.time
+```
+
+The population data is missing from the hispanic column in the census data.  
+
+
+```{r}
+
+census_data$Hispanic_pop <- census_data$Total_pop - census_data$White_pop
+stops_data %>% group_by(gender_code) %>% summarise(totals = n()/nrow(stops_data))
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
