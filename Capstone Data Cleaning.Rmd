@@ -16,34 +16,83 @@ library(dplyr)
 
 ## R Load data
 
-Start by loading all the data into R. Check structure of data. Fix column names. Set column types
+Start by loading all the data into R with good column types. Fix column names.
 
 ```{r}
-census_data <- read.csv("Census_Data_by_Neighborhood_Council.csv")
-str(census_data)
-names(census_data)[2] = "Total_pop"
-census_data$NC_Name = as.character(census_data$NC_Name)
+library(dplyr)
+library(readr)
+census_data_by_Neighborhood_Council <- read_csv("Census_Data_by_Neighborhood_Council.csv", 
+    col_types = cols(Hispanic_pop = col_double(), 
+        Owner_occ = col_skip(), Renter_occ = col_skip()))
+reporting_districts <- read_csv("LAPD_Reporting_Districts.csv", 
+    col_types = cols(AREA = col_skip(), OBJECTID = col_skip(), 
+        PERIMETER = col_skip(), PREC = col_character(), 
+        REPDIST = col_character(), Shape__Area = col_skip(), 
+        Shape__Length = col_skip()))
+reporting_districts <- rename(reporting_districts, reporting_district = REPDIST, division_number = PREC, division = APREC, bureau = BUREAU, basic_car = BASICCAR)
 
-reporting_districts <- read.csv("LAPD_Reporting_Districts.csv")
-str(reporting_districts)
-#Renaming precinct to division because in other sources, it is called division
-names(reporting_districts) = c("Object_ID", "Reporting_District", "Division_number", "Division", "Bureau", "Basic_car_area", "Area", "Perimeter", "Shape_Area", "Shape_Length")
-reporting_districts$Reporting_District = as.character(reporting_districts$Reporting_District)
+stops_data <- read_csv("Vehicle_and_Pedestrian_Stop_Data_2010_to_Present.csv", 
+    col_types = cols(`Form Reference Number` = col_character(), 
+        `Officer 1 Serial Number` = col_character(), 
+        `Reporting District` = col_character(), 
+        `Stop Date` = col_date(format = "%m/%d/%Y"), 
+        `Stop Number` = col_character(), 
+        `Stop Time` = col_time(format = "%H:%M")))
+names(stops_data) = c("stop_number", "form_reference_number", "gender_code", "ethnicity_code", "ethnicity", "date", "time", "officer_1_serial", "officer_1_division_num", "division_1", "officer_2_serial", "Officer_2_division_num", "division_2", "reporting_district", "stop_type", "post_stop_activity")
 
-stops_data <- read.csv("Vehicle_and_Pedestrian_Stop_Data_2010_to_Present.csv")
-str(stops_data)
-names(stops_data) = c("Stop_number", "form_reference_number", "gender_code", "ethnicity_code", "ethnicity", "Stop_date", "Stop_time", "Officer_1_Serial", "Officer_1_Division_num", "Division_1", "Officer_2_Serial", "Officer_2_Division_num", "Division_2", "Reporting_District", "Stop_Type", "Post_Stop_Activity")
-stops_data$Stop_date = as.Date(stops_data$Stop_date)
-#stops_data$Stop_time = as.time
+
+```
+Clean up the stops data. Add a year column, join it with the reporting districts data. Then rename the new columns.
+
+```{r}
+stops_data <- stops_data %>%
+  mutate(year = year(date)) %>%
+  left_join(reporting_districts, "reporting_district") %>%
+  rename(stop_division_number = division_number, stop_division = division, stop_bureau = bureau, stop_basic_car = basic_car)
 ```
 
-The population data is missing from the hispanic column in the census data.  
+The population data is missing from the hispanic column in the census data. Fill it in by subtracting the popultions of the other ethnicities from the total population. Calculate the total population of the city. Then created a vector of the percentages of each ethnicity city-wide. 
 
 
 ```{r}
+census_data$Hispanic_pop <- census_data$Total_pop - 
+  census_data$White_pop -
+  census_data$Black_pop -
+  census_data$Ameri_es_pop -
+  census_data$Asian_pop -
+  census_data$Hawn_pi_pop -
+  census_data$Other_pop -
+  census_data$Multi_pop
 
-census_data$Hispanic_pop <- census_data$Total_pop - census_data$White_pop
+city_pop_total <- sum(census_data$Total_pop)
+pop_avg_citywide <- c(100*sum(census_data$White_pop)/city_pop_total,
+                      100*sum(census_data$Black_pop)/city_pop_total,
+                      100*sum(census_data$Ameri_es_pop)/city_pop_total,
+                      100*sum(census_data$Asian_pop)/city_pop_total,
+                      100*sum(census_data$Hawn_pi_pop)/city_pop_total,
+                      100*sum(census_data$Hispanic_pop)/city_pop_total,
+                      100*sum(census_data$Other_pop)/city_pop_total,
+                      100*sum(census_data$Multi_pop)/city_pop_total)
+names(pop_avg_citywide) <- c("Percent_White", "Percent_Black", "Percent_Ameri_es", "Percent_Asian", "Percent_Hawn_pi", 
+                             "Percent_Hispanic", "Percent_Other", "Percent_Multi")
+city_pop_total
+pop_avg_citywide
+
+
+#for later
 stops_data %>% group_by(gender_code) %>% summarise(totals = n()/nrow(stops_data))
+stops_data %>% group_by(ethnicity_code) %>% summarise(totals = n()/nrow(stops_data))
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+According to the [Census.gov website](https://www.census.gov/quickfacts/fact/table/losangelescitycalifornia,losangelescountycalifornia/POP010210), Los Angelos had a population of 3.79 million people in 2010. This is very close to the 3.73 million reported in our census data set from the neighborhood council. The percentages by each ethnicity also match well. It looks like our calculation for the hispanic population will work.
+
+Now, let's combine all ethnicities that represent less than 2% of the population as "other." We'll change the ethnicity column in stops_data but leave the ethnicity_code column alone in case we need the original values later. 
+```{r}
+unique(stops_data$ethnicity)
+stops_data <- stops_data %>% 
+  mutate(ethnicity = ifelse(ethnicity %in% c("OTHER", "AMERICAN INDIAN", "MULTI-DESCENTS"), "OTHER", ethnicity))
+unique(stops_data$ethnicity)
+
+
+```
+
