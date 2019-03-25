@@ -12,6 +12,9 @@ knitr::opts_chunk$set(echo = TRUE)
 ## Load packages
 ```{r}
 library(dplyr)
+library(readr)
+library(lubridate)
+library(stringr)
 ```
 
 ## R Load data
@@ -19,11 +22,10 @@ library(dplyr)
 Start by loading all the data into R with good column types. Fix column names.
 
 ```{r}
-library(dplyr)
-library(readr)
-census_data_by_Neighborhood_Council <- read_csv("Census_Data_by_Neighborhood_Council.csv", 
+census_data <- read_csv("Census_Data_by_Neighborhood_Council.csv", 
     col_types = cols(Hispanic_pop = col_double(), 
         Owner_occ = col_skip(), Renter_occ = col_skip()))
+census_data <- rename(census_data, neighborhood = NC_Name, Total_pop = "Total Population")
 reporting_districts <- read_csv("LAPD_Reporting_Districts.csv", 
     col_types = cols(AREA = col_skip(), OBJECTID = col_skip(), 
         PERIMETER = col_skip(), PREC = col_character(), 
@@ -42,13 +44,21 @@ names(stops_data) = c("stop_number", "form_reference_number", "gender_code", "et
 
 
 ```
-Clean up the stops data. Add a year column, join it with the reporting districts data. Then rename the new columns.
+Clean up the stops data: 
+Add a year column. 
+If the reporting district starts with 0, remove the 0.
+Join the stops data with the reporting districts data to get the division and bureau where the stop took place. 
+Rename the new columns in the stops data.
 
 ```{r}
 stops_data <- stops_data %>%
   mutate(year = year(date)) %>%
+  mutate(reporting_district = ifelse(grepl(pattern = "^0", reporting_district), 
+                                 str_sub(reporting_district, start = 2), reporting_district)) %>%
   left_join(reporting_districts, "reporting_district") %>%
   rename(stop_division_number = division_number, stop_division = division, stop_bureau = bureau, stop_basic_car = basic_car)
+
+
 ```
 
 The population data is missing from the hispanic column in the census data. Fill it in by subtracting the popultions of the other ethnicities from the total population. Calculate the total population of the city. Then created a vector of the percentages of each ethnicity city-wide. 
@@ -94,5 +104,15 @@ stops_data <- stops_data %>%
 unique(stops_data$ethnicity)
 
 
+```
+Add a column to the census_data called All_other_pop with the sum of the populations of ethnic groups with less than 2% of the population.  
+```{r}
+census_data <- census_data %>% mutate(
+  All_other_pop = 
+    Ameri_es_pop +
+    Hawn_pi_pop +
+    Other_pop + 
+    Multi_pop
+)
 ```
 
