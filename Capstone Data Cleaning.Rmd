@@ -89,9 +89,7 @@ city_pop_total
 pop_avg_citywide
 
 
-#for later
-stops_data %>% group_by(gender_code) %>% summarise(totals = n()/nrow(stops_data))
-stops_data %>% group_by(ethnicity_code) %>% summarise(totals = n()/nrow(stops_data))
+
 ```
 
 According to the [Census.gov website](https://www.census.gov/quickfacts/fact/table/losangelescitycalifornia,losangelescountycalifornia/POP010210), Los Angelos had a population of 3.79 million people in 2010. This is very close to the 3.73 million reported in our census data set from the neighborhood council. The percentages by each ethnicity also match well. It looks like our calculation for the hispanic population will work.
@@ -114,5 +112,17 @@ census_data <- census_data %>% mutate(
     Other_pop + 
     Multi_pop
 )
+```
+Subset to just 2010 and find percentages of each ethnicity by stop division
+```{r}
+#for later
+#stops_data %>% group_by(gender_code) %>% summarise(totals = n()/nrow(stops_data))
+#stops_data %>% group_by(ethnicity_code) %>% summarise(totals = n()/nrow(stops_data))
+
+stops_data_2010 <- stops_data %>% 
+  filter(year == 2010) %>%
+  group_by(stop_division, ethnicity) %>%
+  summarise(ethnicity_count = n()) %>%
+  mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count))
 ```
 
