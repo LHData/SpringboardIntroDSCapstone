@@ -15,6 +15,7 @@ library(dplyr)
 library(readr)
 library(lubridate)
 library(stringr)
+library(tidyr)
 ```
 
 ## R Load data
@@ -26,6 +27,7 @@ census_data <- read_csv("Census_Data_by_Neighborhood_Council.csv",
     col_types = cols(Hispanic_pop = col_double(), 
         Owner_occ = col_skip(), Renter_occ = col_skip()))
 census_data <- rename(census_data, neighborhood = NC_Name, Total_pop = "Total Population")
+
 reporting_districts <- read_csv("LAPD_Reporting_Districts.csv", 
     col_types = cols(AREA = col_skip(), OBJECTID = col_skip(), 
         PERIMETER = col_skip(), PREC = col_character(), 
@@ -42,6 +44,7 @@ stops_data <- read_csv("Vehicle_and_Pedestrian_Stop_Data_2010_to_Present.csv",
         `Stop Time` = col_time(format = "%H:%M")))
 names(stops_data) = c("stop_number", "form_reference_number", "gender_code", "ethnicity_code", "ethnicity", "date", "time", "officer_1_serial", "officer_1_division_num", "division_1", "officer_2_serial", "Officer_2_division_num", "division_2", "reporting_district", "stop_type", "post_stop_activity")
 
+#to do: add division population data
 
 ```
 Clean up the stops data: 
@@ -75,18 +78,21 @@ census_data$Hispanic_pop <- census_data$Total_pop -
   census_data$Multi_pop
 
 city_pop_total <- sum(census_data$Total_pop)
-pop_avg_citywide <- c(100*sum(census_data$White_pop)/city_pop_total,
-                      100*sum(census_data$Black_pop)/city_pop_total,
-                      100*sum(census_data$Ameri_es_pop)/city_pop_total,
-                      100*sum(census_data$Asian_pop)/city_pop_total,
-                      100*sum(census_data$Hawn_pi_pop)/city_pop_total,
-                      100*sum(census_data$Hispanic_pop)/city_pop_total,
-                      100*sum(census_data$Other_pop)/city_pop_total,
-                      100*sum(census_data$Multi_pop)/city_pop_total)
-names(pop_avg_citywide) <- c("Percent_White", "Percent_Black", "Percent_Ameri_es", "Percent_Asian", "Percent_Hawn_pi", 
-                             "Percent_Hispanic", "Percent_Other", "Percent_Multi")
+# pop_avg_citywide <- c(100*sum(census_data$White_pop)/city_pop_total,
+#                       100*sum(census_data$Black_pop)/city_pop_total,
+#                       100*sum(census_data$Ameri_es_pop)/city_pop_total,
+#                       100*sum(census_data$Asian_pop)/city_pop_total,
+#                       100*sum(census_data$Hawn_pi_pop)/city_pop_total,
+#                       100*sum(census_data$Hispanic_pop)/city_pop_total,
+#                       100*sum(census_data$Other_pop)/city_pop_total,
+#                       100*sum(census_data$Multi_pop)/city_pop_total)
+# names(pop_avg_citywide) <- c("Percent_White", "Percent_Black", "Percent_Ameri_es", "Percent_Asian", "Percent_Hawn_pi", 
+#                              "Percent_Hispanic", "Percent_Other", "Percent_Multi")
+city_wide_percentages <- census_data[,3:10] %>%
+  summarise_each(funs(sum))/city_pop_total
+
 city_pop_total
-pop_avg_citywide
+city_wide_percentages
 
 
 
@@ -115,14 +121,25 @@ census_data <- census_data %>% mutate(
 ```
 Subset to just 2010 and find percentages of each ethnicity by stop division
 ```{r}
-#for later
-#stops_data %>% group_by(gender_code) %>% summarise(totals = n()/nrow(stops_data))
-#stops_data %>% group_by(ethnicity_code) %>% summarise(totals = n()/nrow(stops_data))
+
 
 stops_data_2010 <- stops_data %>% 
   filter(year == 2010) %>%
   group_by(stop_division, ethnicity) %>%
   summarise(ethnicity_count = n()) %>%
   mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count))
+
+#to do: renamestops_data_2010 to stops_summary_2010
+#join stops_summary_2010 to division population data
+#reshape stops_summary_2010 with gather() so that it has these columns:
+  #stop_division, ethnicity, location, ethnicity percentage
+  #location column will contain "stops" or "neighborhood" 
+
+
+#scratchpad stuff I might use  later
+#stops_data %>% group_by(gender_code) %>% summarise(totals = n()/nrow(stops_data))
+#stops_data %>% group_by(ethnicity_code) %>% summarise(totals = n()/nrow(stops_data))
+#gather(stops_hollywood_2010, "location", "ethnicty_percentage", 4:5)
+#ggplot(hollywood_2010_summary, aes(x=ethnicity, y = ethnicty_percentage)) + geom_bar(aes(fill = location), stat = 'identity', position = 'dodge')
 ```
 
