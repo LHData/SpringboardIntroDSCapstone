@@ -116,9 +116,17 @@ census_data <- census_data %>% mutate(
     Multi_pop
 )
 ```
-Subset to just 2010 and find percentages of each ethnicity by stop division
+Create two data sets: one with stop percentage by ethnicity for each division for all years. The second will be the same thing, just for 2010 (the year the census data is from). For each data set, add data with the ethnicity data by division populations for the neighborhood.  
 ```{r}
+stops_summary_all_years <- stops_data %>% 
+  filter(!is.na(stop_division)) %>%
+  group_by(stop_division, ethnicity) %>%
+  summarise(ethnicity_count = n()) %>%
+  mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count)) %>%
+  mutate(location = "stops") %>%
+  rename(division = stop_division)
 
+stops_summary_all_years$ethnicity_count = NULL
 
 stops_summary_2010 <- stops_data %>% 
   filter(year == 2010, !is.na(stop_division)) %>%
@@ -135,22 +143,8 @@ division_pop <- division_pop %>%
   gather("ethnicity", "ethnicity_percent", 2:6) %>%
   mutate(location = "population")
 
+stops_summary_all_years_with_pop <- bind_rows(stops_summary_all_years, division_pop)
 stops_summary_2010_with_pop <- bind_rows(stops_summary_2010, division_pop)
 
-#graph it:
-ggplot(stops_summary_2010_with_pop, aes(x=ethnicity, y = ethnicity_percent)) + geom_bar(aes(fill = location), stat = 'identity', position = 'dodge') + facet_grid(division ~.)
-
-
-#join stops_summary_2010 to division population data
-#reshape stops_summary_2010 with gather() so that it has these columns:
-  #stop_division, ethnicity, location, ethnicity percentage
-  #location column will contain "stops" or "neighborhood" 
-
-
-#scratchpad stuff I might use  later
-#stops_data %>% group_by(gender_code) %>% summarise(totals = n()/nrow(stops_data))
-#stops_data %>% group_by(ethnicity_code) %>% summarise(totals = n()/nrow(stops_data))
-#gather(stops_hollywood_2010, "location", "ethnicty_percentage", 4:5)
-#ggplot(hollywood_2010_summary, aes(x=ethnicity, y = ethnicty_percentage)) + geom_bar(aes(fill = location), stat = 'identity', position = 'dodge')
 ```
 
