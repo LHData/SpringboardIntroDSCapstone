@@ -44,7 +44,14 @@ stops_data <- read_csv("Vehicle_and_Pedestrian_Stop_Data_2010_to_Present.csv",
         `Stop Time` = col_time(format = "%H:%M")))
 names(stops_data) = c("stop_number", "form_reference_number", "gender_code", "ethnicity_code", "ethnicity", "date", "time", "officer_1_serial", "officer_1_division_num", "division_1", "officer_2_serial", "Officer_2_division_num", "division_2", "reporting_district", "stop_type", "post_stop_activity")
 
-#to do: add division population data
+division_populations_all <- read_csv("Division_populations.csv")
+division_pop <- Division_populations <- read_csv("Division_populations.csv", 
+    col_types = cols(Asian_pop = col_skip(), 
+        Black_pop = col_skip(), Hispanic_pop = col_skip(), 
+        Other_pop = col_skip(), White_pop = col_skip(), 
+        total_pop = col_skip()))
+division_pop <- rename(division_pop, WHITE = white_percent, BLACK = black_percent, ASIAN = asian_percent, HISPANIC = hispanic_percent, OTHER = other_percent)
+
 
 ```
 Clean up the stops data: 
@@ -78,16 +85,6 @@ census_data$Hispanic_pop <- census_data$Total_pop -
   census_data$Multi_pop
 
 city_pop_total <- sum(census_data$Total_pop)
-# pop_avg_citywide <- c(100*sum(census_data$White_pop)/city_pop_total,
-#                       100*sum(census_data$Black_pop)/city_pop_total,
-#                       100*sum(census_data$Ameri_es_pop)/city_pop_total,
-#                       100*sum(census_data$Asian_pop)/city_pop_total,
-#                       100*sum(census_data$Hawn_pi_pop)/city_pop_total,
-#                       100*sum(census_data$Hispanic_pop)/city_pop_total,
-#                       100*sum(census_data$Other_pop)/city_pop_total,
-#                       100*sum(census_data$Multi_pop)/city_pop_total)
-# names(pop_avg_citywide) <- c("Percent_White", "Percent_Black", "Percent_Ameri_es", "Percent_Asian", "Percent_Hawn_pi", 
-#                              "Percent_Hispanic", "Percent_Other", "Percent_Multi")
 city_wide_percentages <- census_data[,3:10] %>%
   summarise_each(funs(sum))/city_pop_total
 
@@ -123,13 +120,27 @@ Subset to just 2010 and find percentages of each ethnicity by stop division
 ```{r}
 
 
-stops_data_2010 <- stops_data %>% 
-  filter(year == 2010) %>%
+stops_summary_2010 <- stops_data %>% 
+  filter(year == 2010, !is.na(stop_division)) %>%
   group_by(stop_division, ethnicity) %>%
   summarise(ethnicity_count = n()) %>%
-  mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count))
+  mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count)) %>%
+  mutate(location = "stops") %>%
+  rename(division = stop_division)
 
-#to do: renamestops_data_2010 to stops_summary_2010
+stops_summary_2010$ethnicity_count = NULL
+
+#reshape division_pop so that is in the same form as stops_summary
+division_pop <- division_pop %>%
+  gather("ethnicity", "ethnicity_percent", 2:6) %>%
+  mutate(location = "population")
+
+stops_summary_2010_with_pop <- bind_rows(stops_summary_2010, division_pop)
+
+#graph it:
+ggplot(stops_summary_2010_with_pop, aes(x=ethnicity, y = ethnicity_percent)) + geom_bar(aes(fill = location), stat = 'identity', position = 'dodge') + facet_grid(division ~.)
+
+
 #join stops_summary_2010 to division population data
 #reshape stops_summary_2010 with gather() so that it has these columns:
   #stop_division, ethnicity, location, ethnicity percentage
