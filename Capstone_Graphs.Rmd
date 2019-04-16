@@ -1,0 +1,68 @@
+---
+title: "Capstone Graphs"
+author: "Lael Hebert"
+date: "April 13, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r }
+library(ggplot2)
+library(readr)
+library(dplyr)
+stops_summary_2010_with_pop <- read_csv("~/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/stops_summary_2010.csv")
+#graph it:
+ggplot(stops_summary_2010_with_pop, aes(x=ethnicity, y = ethnicity_percent)) + geom_bar(aes(fill = location), stat = 'identity', position = 'dodge') + facet_grid(division ~.)
+
+graph_district_distributions <- function(x) {
+  stops_summary_2010_with_pop %>% 
+    filter(division == unique(stops_summary_2010_with_pop$division)[x]) %>%
+    ggplot(aes(x=ethnicity, y = ethnicity_percent)) + 
+    geom_bar(aes(fill = location), stat = 'identity', position = 'dodge') +
+    ggtitle(unique(stops_summary_2010_with_pop$division)[x])
+  
+}
+
+graph_district_distributions(1)
+graph_district_distributions(2)
+graph_district_distributions(3)
+graph_district_distributions(4)
+graph_district_distributions(5)
+graph_district_distributions(6)
+graph_district_distributions(7)
+graph_district_distributions(8)
+graph_district_distributions(9)
+graph_district_distributions(10)
+graph_district_distributions(11)
+graph_district_distributions(12)
+graph_district_distributions(13)
+graph_district_distributions(14)
+graph_district_distributions(15)
+graph_district_distributions(16)
+graph_district_distributions(17)
+graph_district_distributions(18)
+graph_district_distributions(19)
+graph_district_distributions(20)
+graph_district_distributions(21)
+graph_district_distributions(22)
+graph_district_distributions(23)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
