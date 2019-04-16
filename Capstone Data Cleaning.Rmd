@@ -45,7 +45,12 @@ stops_data <- read_csv("Vehicle_and_Pedestrian_Stop_Data_2010_to_Present.csv",
 names(stops_data) = c("stop_number", "form_reference_number", "gender_code", "ethnicity_code", "ethnicity", "date", "time", "officer_1_serial", "officer_1_division_num", "division_1", "officer_2_serial", "Officer_2_division_num", "division_2", "reporting_district", "stop_type", "post_stop_activity")
 
 division_populations_all <- read_csv("Division_populations.csv")
-division_pop <- Division_populations <- read_csv("Division_populations.csv", 
+division_percents <- division_populations_all[1:7] %>% 
+  rename(WHITE = White_pop, BLACK = Black_pop, ASIAN = Asian_pop, HISPANIC = Hispanic_pop, OTHER = Other_pop)
+division_counts <- division_populations_all %>%
+  select(1,8:12) %>%
+  rename(WHITE = white_percent, BLACK = black_percent, ASIAN = asian_percent, HISPANIC = hispanic_percent, OTHER = other_percent)
+division_pop <- read_csv("Division_populations.csv", 
     col_types = cols(Asian_pop = col_skip(), 
         Black_pop = col_skip(), Hispanic_pop = col_skip(), 
         Other_pop = col_skip(), White_pop = col_skip(), 
@@ -116,7 +121,7 @@ census_data <- census_data %>% mutate(
     Multi_pop
 )
 ```
-Create two data sets: one with stop percentage by ethnicity for each division for all years. The second will be the same thing, just for 2010 (the year the census data is from). For each data set, add data with the ethnicity data by division populations for the neighborhood.  
+Create some data sets: one with stop percentage by ethnicity for each division for all years. The second will be the same thing, just for 2010 (the year the census data is from). For each data set, add data with the ethnicity data by division populations for the neighborhood.  
 ```{r}
 stops_summary_all_years <- stops_data %>% 
   filter(!is.na(stop_division)) %>%
@@ -126,17 +131,41 @@ stops_summary_all_years <- stops_data %>%
   mutate(location = "stops") %>%
   rename(division = stop_division)
 
-stops_summary_all_years$ethnicity_count = NULL
+stops_summary_ethnicity_totals_all_years <- stops_data %>% 
+  filter(!is.na(stop_division)) %>%
+  group_by(ethnicity) %>%
+  summarise(ethnicity_count = n()) %>%
+  mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count)) %>%
+  mutate(location = "stops") %>% 
+  mutate(division = "CITY TOTAL")
 
-stops_summary_2010 <- stops_data %>% 
-  filter(year == 2010, !is.na(stop_division)) %>%
-  group_by(stop_division, ethnicity) %>%
+stops_summary_ethnicity_totals_all_years <- stops_summary_ethnicity_totals_all_years[c(5,1,2,3,4)]
+stops_summary_all_years <- bind_rows(stops_summary_all_years, stops_summary_ethnicity_totals_all_years)
+
+stops_summary_by_year <- stops_data %>% 
+  filter(!is.na(stop_division)) %>%
+  group_by(stop_division, year, ethnicity) %>%
   summarise(ethnicity_count = n()) %>%
   mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count)) %>%
   mutate(location = "stops") %>%
   rename(division = stop_division)
 
-stops_summary_2010$ethnicity_count = NULL
+stops_summary_ethnicity_totals_by_year <- stops_data %>% 
+  filter(!is.na(stop_division), year != 1900) %>%
+  group_by(year, ethnicity) %>%
+  summarise(ethnicity_count = n()) %>%
+  mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count)) %>%
+  mutate(location = "stops") %>%
+  mutate(division = "CITY TOTAL")
+
+stops_summary_ethnicity_totals_by_year <- stops_summary_ethnicity_totals_by_year[c(6,1,2,3,4,5)]
+stops_summary_by_year <- bind_rows(stops_summary_by_year, stops_summary_ethnicity_totals_by_year)
+
+#stops_summary_all_years$ethnicity_count = NULL
+
+stops_summary_2010 <- filter(stops_summary_by_year, year == 2010)
+
+#stops_summary_2010$ethnicity_count = NULL
 
 #reshape division_pop so that is in the same form as stops_summary
 division_pop <- division_pop %>%
@@ -145,6 +174,8 @@ division_pop <- division_pop %>%
 
 stops_summary_all_years_with_pop <- bind_rows(stops_summary_all_years, division_pop)
 stops_summary_2010_with_pop <- bind_rows(stops_summary_2010, division_pop)
+
+write_csv(stops_summary_2010_with_pop, path = "C:/Users/lahebert.REDMOND/Documents/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/stops_summary_2010.csv")
 
 ```
 
