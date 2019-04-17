@@ -44,12 +44,8 @@ stops_data <- read_csv("Vehicle_and_Pedestrian_Stop_Data_2010_to_Present.csv",
         `Stop Time` = col_time(format = "%H:%M")))
 names(stops_data) = c("stop_number", "form_reference_number", "gender_code", "ethnicity_code", "ethnicity", "date", "time", "officer_1_serial", "officer_1_division_num", "division_1", "officer_2_serial", "Officer_2_division_num", "division_2", "reporting_district", "stop_type", "post_stop_activity")
 
-division_populations_all <- read_csv("Division_populations.csv")
-division_percents <- division_populations_all[1:7] %>% 
-  rename(WHITE = White_pop, BLACK = Black_pop, ASIAN = Asian_pop, HISPANIC = Hispanic_pop, OTHER = Other_pop)
-division_counts <- division_populations_all %>%
-  select(1,8:12) %>%
-  rename(WHITE = white_percent, BLACK = black_percent, ASIAN = asian_percent, HISPANIC = hispanic_percent, OTHER = other_percent)
+division_populations_all <- read_csv("Division_populations.csv") 
+
 division_pop <- read_csv("Division_populations.csv", 
     col_types = cols(Asian_pop = col_skip(), 
         Black_pop = col_skip(), Hispanic_pop = col_skip(), 
@@ -121,7 +117,7 @@ census_data <- census_data %>% mutate(
     Multi_pop
 )
 ```
-Create some data sets: one with stop percentage by ethnicity for each division for all years. The second will be the same thing, just for 2010 (the year the census data is from). For each data set, add data with the ethnicity data by division populations for the neighborhood.  
+Create some data sets: one with stop percentage by ethnicity for each division for all years. The second will have the same data broken out by year.  For each data set, add data with the ethnicity data by division populations for the neighborhood.  
 ```{r}
 stops_summary_all_years <- stops_data %>% 
   filter(!is.na(stop_division)) %>%
@@ -161,21 +157,23 @@ stops_summary_ethnicity_totals_by_year <- stops_data %>%
 stops_summary_ethnicity_totals_by_year <- stops_summary_ethnicity_totals_by_year[c(6,1,2,3,4,5)]
 stops_summary_by_year <- bind_rows(stops_summary_by_year, stops_summary_ethnicity_totals_by_year)
 
-#stops_summary_all_years$ethnicity_count = NULL
+#division_populations_all so that it is in the same form as stops_summary. Call it division_pop_gathered
+division_counts <- division_populations_all[1:7] %>% 
+  rename(WHITE = White_pop, BLACK = Black_pop, ASIAN = Asian_pop, HISPANIC = Hispanic_pop, OTHER = Other_pop) %>%
+  gather("ethnicity", "ethnicity_count", 2:7) 
+division_percents <- division_populations_all %>%
+  select(1,8:12) %>%
+  rename(WHITE = white_percent, BLACK = black_percent, ASIAN = asian_percent, HISPANIC = hispanic_percent, OTHER = other_percent)  %>%
+  gather("ethnicity", "ethnicity_percent", 2:6)
 
-stops_summary_2010 <- filter(stops_summary_by_year, year == 2010)
-
-#stops_summary_2010$ethnicity_count = NULL
-
-#reshape division_pop so that is in the same form as stops_summary
-division_pop <- division_pop %>%
-  gather("ethnicity", "ethnicity_percent", 2:6) %>%
+division_pop_gathered <- left_join(division_counts,division_percents) %>%
   mutate(location = "population")
 
-stops_summary_all_years_with_pop <- bind_rows(stops_summary_all_years, division_pop)
-stops_summary_2010_with_pop <- bind_rows(stops_summary_2010, division_pop)
+stops_summary_all_years_with_pop <- bind_rows(stops_summary_all_years, division_pop_gathered)
+stops_summary_by_year_with_pop <- bind_rows(stops_summary_by_year, mutate(division_pop_gathered, year = 2010))
 
-write_csv(stops_summary_2010_with_pop, path = "C:/Users/lahebert.REDMOND/Documents/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/stops_summary_2010.csv")
+write_csv(stops_summary_all_years_with_pop, path = "C:/Users/lahebert.REDMOND/Documents/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/stops_summary_all_years_with_pop.csv")
+write_csv(stops_summary_by_year_with_pop, path = "C:/Users/lahebert.REDMOND/Documents/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/stops_summary_by_year_with_pop.csv")
 
 ```
 
