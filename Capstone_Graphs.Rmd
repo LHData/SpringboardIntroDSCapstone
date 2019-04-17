@@ -10,27 +10,65 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+Load packages and data
 
 ```{r }
 library(ggplot2)
 library(readr)
 library(dplyr)
-stops_summary_2010_with_pop <- read_csv("~/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/stops_summary_2010.csv")
-#graph it:
-ggplot(stops_summary_2010_with_pop, aes(x=ethnicity, y = ethnicity_percent)) + geom_bar(aes(fill = location), stat = 'identity', position = 'dodge') + facet_grid(division ~.)
+library(tidyr)
+stops_summary_all_years_with_pop <- read_csv("~/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/stops_summary_all_years_with_pop.csv")
+stops_summary_by_year_with_pop <- read_csv("~/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/stops_summary_by_year_with_pop.csv")
 
-graph_district_distributions <- function(x) {
-  stops_summary_2010_with_pop %>% 
-    filter(division == unique(stops_summary_2010_with_pop$division)[x]) %>%
+```
+
+Start by graphing ethnicity_percent by populations and stops city-wide 
+```{r, echo=FALSE}
+
+stops_summary_all_years_with_pop %>% 
+  filter(division == "CITY TOTAL",  ethnicity != "total_pop") %>%
     ggplot(aes(x=ethnicity, y = ethnicity_percent)) + 
     geom_bar(aes(fill = location), stat = 'identity', position = 'dodge') +
-    ggtitle(unique(stops_summary_2010_with_pop$division)[x])
-  
+    ggtitle("CITY TOTAL")
+
+```
+
+It looks like the black population has a lot more traffic stops than one would expect. Let's graph the percentage of stops that are for the black population by year
+```{r, echo=FALSE}
+
+stops_summary_by_year_with_pop %>% 
+  filter(division == "CITY TOTAL", ethnicity == "BLACK", location == "stops") %>%
+  ggplot(aes(x = year, y = ethnicity_percent)) + geom_point() 
+
+```
+
+Holy cow! It looks like the percentage of blacks in traffic stops is increasing. Let's add a regression line to the graph and look at the regression parameters.
+```{r, echo=FALSE}
+stops_summary_by_year_with_pop %>% 
+  filter(division == "CITY TOTAL", ethnicity == "BLACK", location == "stops") %>%
+  ggplot(aes(x = year, y = ethnicity_percent)) + geom_point() + 
+  geom_smooth(method = 'lm', formula = y~x)
+
+summary(lm(ethnicity_percent ~ year, filter(stops_summary_by_year_with_pop, division == "CITY TOTAL", ethnicity == "BLACK", location == "stops")))
+
+```
+The percentage of stops of black people is increasing by about 0.8 percentage points a year. Let's look at each of the divisions
+```{r, echo=FALSE}
+
+#graph it:
+ggplot(stops_summary_all_years_with_pop, aes(x=ethnicity, y = ethnicity_percent)) + geom_bar(aes(fill = location), stat = 'identity', position = 'dodge') + facet_grid(division ~.)
+
+graph_district_distributions <- function(x) {
+  stops_summary_all_years_with_pop %>% 
+    filter(division == unique(stops_summary_all_years_with_pop$division)[x],  ethnicity != "total_pop") %>%
+    ggplot(aes(x=ethnicity, y = ethnicity_percent)) + 
+    geom_bar(aes(fill = location), stat = 'identity', position = 'dodge') +
+    ggtitle(unique(stops_summary_all_years_with_pop$division)[x])
 }
+ 
+# for (i in 1:length(unique(stops_summary_all_years$division))) {
+#   graph_district_distributions(i)
+# }
 
 graph_district_distributions(1)
 graph_district_distributions(2)
@@ -54,15 +92,25 @@ graph_district_distributions(19)
 graph_district_distributions(20)
 graph_district_distributions(21)
 graph_district_distributions(22)
-graph_district_distributions(23)
 ```
 
-## Including Plots
+##
 
-You can also embed plots, for example:
+Try another graph. Plot population percentage verses stops percentage by division for blacks.
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r, echo=FALSE}
+stops_summary_all_years_with_pop %>% 
+  select(1,2,4,5) %>%
+  filter(ethnicity == "BLACK", division != "CITY TOTAL") %>%
+  spread(key = location, value = ethnicity_percent) %>%
+  ggplot(aes(x=population, y=stops)) + 
+    geom_point() +
+    geom_smooth(method = 'lm', formula = y~x)
+
+```
+
+```{r, echo=FALSE}
+
 ```
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
