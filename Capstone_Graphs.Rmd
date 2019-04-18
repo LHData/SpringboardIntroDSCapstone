@@ -108,9 +108,19 @@ stops_summary_all_years_with_pop %>%
     geom_smooth(method = 'lm', formula = y~x)
 
 ```
+Let's create a data set with only data for the black population. This will help us identify the points above the regression line.
+```{r, echo=FALSE}
+black_div_sum <- filter(stops_summary_all_years_with_pop, ethnicity == "BLACK")
+black_div_sum$ethnicity = NULL
+black_div_stops <- filter(black_div_sum, location == "stops")
+black_div_pop <- filter(black_div_sum, location == "population")
+black_div_sum <- left_join(black_div_pop, black_div_stops, by = "division") %>%
+  rename(pop_count = ethnicity_count.x, pop_percent = ethnicity_percent.x, stop_count = ethnicity_count.y, stop_percent = ethnicity_percent.y) %>%
+  mutate(stop_to_pop_ratio = stop_count / pop_count)
+black_div_sum$location.x = NULL
+black_div_sum$location.y = NULL
+```
 
 ```{r, echo=FALSE}
 
 ```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
