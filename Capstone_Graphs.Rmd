@@ -116,9 +116,11 @@ black_div_stops <- filter(black_div_sum, location == "stops")
 black_div_pop <- filter(black_div_sum, location == "population")
 black_div_sum <- left_join(black_div_pop, black_div_stops, by = "division") %>%
   rename(pop_count = ethnicity_count.x, pop_percent = ethnicity_percent.x, stop_count = ethnicity_count.y, stop_percent = ethnicity_percent.y) %>%
-  mutate(stop_to_pop_ratio = stop_count / pop_count)
+  mutate(stop_to_pop_count = stop_count / pop_count) %>%
+  mutate(stop_to_pop_percent = stop_percent / pop_percent)
 black_div_sum$location.x = NULL
 black_div_sum$location.y = NULL
+black_div_sum[1:22,]
 ```
 
 ```{r, echo=FALSE}
