@@ -96,9 +96,18 @@ graph_district_distributions(22)
 
 ##
 
-Try another graph. Plot population percentage verses stops percentage by division for blacks.
+Try some more graphs. Plot the black population verses the number of black stops for each division. Then plot the population percentage verses stops percentage by division for blacks.
 
 ```{r, echo=FALSE}
+stops_summary_all_years_with_pop %>% 
+  select(1,2,3,5) %>%
+  filter(ethnicity == "BLACK", division != "CITY TOTAL") %>%
+  spread(key = location, value = ethnicity_count) %>%
+  ggplot(aes(x=population, y=stops)) + 
+  geom_point() +
+  geom_smooth(method = 'lm', formula = y~x)
+
+
 stops_summary_all_years_with_pop %>% 
   select(1,2,4,5) %>%
   filter(ethnicity == "BLACK", division != "CITY TOTAL") %>%
