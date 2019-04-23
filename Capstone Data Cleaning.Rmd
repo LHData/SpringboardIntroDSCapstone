@@ -215,3 +215,30 @@ ethnicity_by_stop_type_citywide_all_years <- stops_data %>%
 write_csv(stop_type_by_ethnicity_citywide_all_years, path = "C:/Users/lahebert.REDMOND/Documents/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/stop_type_by_ethnicity_citywide_all_years.csv")
 
 ```
+Create data sets similar to stops_summary_all_years and stops_summary_by_year but instead of being rolled up by division, it's rolled up by basic car unit
+```{r}
+basic_car_ethnicity_all_years <- stops_data %>% 
+  filter(!is.na(stop_division)) %>%
+  group_by(stop_basic_car, ethnicity) %>%
+  summarise(ethnicity_count = n()) %>%
+  mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count))  %>%
+  rename(basic_car = stop_basic_car) %>%
+  left_join(unique(select(reporting_districts, basic_car, division)), "basic_car")
+
+basic_car_ethnicity_by_year <- stops_data %>% 
+  filter(!is.na(stop_division)) %>%
+  group_by(stop_basic_car, year, ethnicity) %>%
+  summarise(ethnicity_count = n()) %>%
+  mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count)) %>%
+  rename(basic_car = stop_basic_car) %>% 
+  left_join(unique(select(reporting_districts, basic_car, division)), "basic_car")
+
+basic_car_pedestrian_ethnicity_all_years <- stops_data %>% 
+    filter(!is.na(stop_division), !is.na(stop_type)) %>%
+    group_by(stop_basic_car, stop_type, ethnicity) %>%
+    summarise(ethnicity_count = n()) %>%
+    mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count))  %>%
+    rename(basic_car = stop_basic_car) 
+
+
+```
