@@ -177,3 +177,41 @@ write_csv(stops_summary_by_year_with_pop, path = "C:/Users/lahebert.REDMOND/Docu
 
 ```
 
+
+Create some data sets: one with stop percentage by ethnicity for each division for all years. The second will have the same data broken out by year.  For each data set, add data with the ethnicity data by division populations for the neighborhood.  
+
+```{r}
+#Get the percentage of each stop type broken down by ethnicity
+stop_type_by_ethnicity_citywide_all_years <- stops_data %>% 
+  filter(!is.na(stop_type)) %>%
+  group_by(stop_type, ethnicity) %>%
+  summarise(ethnicity_count = n()) %>%
+  mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count)) %>%
+  mutate(division = "CITY TOTAL")
+
+#Add city-wide total 
+stop_type_by_ethnicity_citywide_all_years <- 
+  division_pop_gathered %>%
+  filter(division == "CITY TOTAL", !is.na(ethnicity_percent)) %>%
+  rename(stop_type = location) %>%
+  bind_rows(stop_type_by_ethnicity_citywide_all_years)
+
+stop_type_by_ethnicity_citywide_by_year <- stops_data %>% 
+  filter(!is.na(stop_type)) %>%
+  group_by(year, stop_type, ethnicity) %>%
+  summarise(ethnicity_count = n()) %>%
+  mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count)) %>%
+  mutate(division = "CITY TOTAL")
+
+
+#Get the percentage of each ethnicity broken down by stop type
+ethnicity_by_stop_type_citywide_all_years <- stops_data %>% 
+  filter(!is.na(stop_type)) %>%
+  group_by(ethnicity, stop_type) %>%
+  summarise(ethnicity_count = n()) %>%
+  mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count)) %>%
+  mutate(division = "CITY TOTAL")
+
+write_csv(stop_type_by_ethnicity_citywide_all_years, path = "C:/Users/lahebert.REDMOND/Documents/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/stop_type_by_ethnicity_citywide_all_years.csv")
+
+```
