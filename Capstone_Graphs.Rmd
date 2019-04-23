@@ -18,7 +18,9 @@ library(readr)
 library(dplyr)
 library(tidyr)
 stops_summary_all_years_with_pop <- read_csv("~/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/stops_summary_all_years_with_pop.csv")
-stops_summary_by_year_with_pop <- read_csv("~/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/stops_summary_by_year_with_pop.csv")
+stops_summary_by_year_with_pop <- read_csv("~/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/stops_summary_by_year_with_pop.csv", 
+    col_types = cols(ethnicity_count = col_double()))
+stop_type_by_ethnicity_citywide_all_years <- read_csv("~/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/stop_type_by_ethnicity_citywide_all_years.csv")
 
 ```
 
@@ -33,11 +35,17 @@ stops_summary_all_years_with_pop %>%
 
 ```
 
+Now let's look at ethnic breakdowns by
+Let's look at vehicular versus pedestrian stops.
+```{r, echo=FALSE}
+ggplot(stop_type_by_ethnicity_citywide_all_years, aes(x= ethnicity, y = ethnicity_percent)) + geom_bar(aes(fill=stop_type), stat= 'identity', position='dodge')
+```
+
 It looks like the black population has a lot more traffic stops than one would expect. Let's graph the percentage of stops that are for the black population by year
 ```{r, echo=FALSE}
 
 stops_summary_by_year_with_pop %>% 
-  filter(division == "CITY TOTAL", ethnicity == "BLACK", location == "stops") %>%
+  filter(division == "CITY TOTAL", ethnicity == "BLACK", location == "stops", year != 2019) %>%
   ggplot(aes(x = year, y = ethnicity_percent)) + geom_point() 
 
 ```
@@ -45,9 +53,10 @@ stops_summary_by_year_with_pop %>%
 Holy cow! It looks like the percentage of blacks in traffic stops is increasing. Let's add a regression line to the graph and look at the regression parameters.
 ```{r, echo=FALSE}
 stops_summary_by_year_with_pop %>% 
-  filter(division == "CITY TOTAL", ethnicity == "BLACK", location == "stops") %>%
+  filter(division == "CITY TOTAL", ethnicity == "BLACK", location == "stops", year != 2019) %>%
   ggplot(aes(x = year, y = ethnicity_percent)) + geom_point() + 
-  geom_smooth(method = 'lm', formula = y~x)
+  geom_smooth(method = 'lm', formula = y~x) +
+  ggtitle("Black Stops")
 
 summary(lm(ethnicity_percent ~ year, filter(stops_summary_by_year_with_pop, division == "CITY TOTAL", ethnicity == "BLACK", location == "stops")))
 
@@ -105,7 +114,8 @@ stops_summary_all_years_with_pop %>%
   spread(key = location, value = ethnicity_count) %>%
   ggplot(aes(x=population, y=stops)) + 
   geom_point() +
-  geom_smooth(method = 'lm', formula = y~x)
+  geom_smooth(method = 'lm', formula = y~x) + 
+  ggtitle("Division counts for blacks")
 
 
 stops_summary_all_years_with_pop %>% 
@@ -114,7 +124,8 @@ stops_summary_all_years_with_pop %>%
   spread(key = location, value = ethnicity_percent) %>%
   ggplot(aes(x=population, y=stops)) + 
     geom_point() +
-    geom_smooth(method = 'lm', formula = y~x)
+    geom_smooth(method = 'lm', formula = y~x) + 
+  ggtitle("Division percentages for blacks")
 
 ```
 Let's create a data set with only data for the black population. This will help us identify the points above the regression line.
@@ -131,6 +142,17 @@ black_div_sum$location.x = NULL
 black_div_sum$location.y = NULL
 black_div_sum[1:22,]
 ```
+Divisions to focus on:
+* Southeast - it's above both the percent and count trend lines
+* Southwest - it's below the percent line but above the count line due to larger ratio of stops to population
+* Central - it's on the percent line but way above the count line due to very large ratio of stops to population
+* Newton - it's way above the percent trend line also avove the  count trend lines
+* Hollywood -it's above both the percent and count trend lines
+* Olympic - it's above the percent trend line and has a huge stop to population ratio
+Also, possibly:
+* West Los Angeles - it's above the percent trend line and also has a large white population
+
+
 
 ```{r, echo=FALSE}
 
