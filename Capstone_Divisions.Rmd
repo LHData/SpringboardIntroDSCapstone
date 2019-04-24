@@ -1,0 +1,72 @@
+---
+title: "Capstone_Divisions"
+author: "Lael Hebert"
+date: "April 23, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r echo=FALSE}
+library(ggplot2)
+library(readr)
+library(dplyr)
+# library(tidyr)
+# stops_summary_all_years_with_pop <- read_csv("~/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/stops_summary_all_years_with_pop.csv")
+stops_summary_by_year_with_pop <- read_csv("~/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/stops_summary_by_year_with_pop.csv", 
+     col_types = cols(ethnicity_count = col_double()))
+# stop_type_by_ethnicity_citywide_all_years <- read_csv("~/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/stop_type_by_ethnicity_citywide_all_years.csv")
+```
+
+Graph vehicular vs pedestrians stops
+
+```{r echo=FALSE}
+
+```
+Graph division trends
+
+```{r echo=FALSE}
+
+division_black_trend_graph <- function(div) {
+  stops_summary_by_year_with_pop %>% 
+  filter(division == div, ethnicity == "BLACK", location == "stops", year != 2019) %>%
+  ggplot(aes(x = year, y = ethnicity_percent)) + geom_point() + 
+  geom_smooth(method = 'lm', formula = y~x) +
+  ggtitle(paste(div,"Black Stops"))
+}
+
+division_black_lm_summary <- function(div) {
+ summary(lm(ethnicity_percent ~ year, filter(stops_summary_by_year_with_pop, division == div, ethnicity == "BLACK", location == "stops"))) 
+}
+
+division_black_trend_graph("SOUTHEAST")
+division_black_lm_summary("SOUTHEAST")
+
+division_black_trend_graph("SOUTHWEST")
+division_black_lm_summary("SOUTHWEST")
+
+division_black_trend_graph("CENTRAL")
+division_black_lm_summary("CENTRAL")
+
+division_black_trend_graph("NEWTON")
+division_black_lm_summary("NEWTON")
+
+division_black_trend_graph("HOLLYWOOD")
+division_black_lm_summary("HOLLYWOOD")
+
+division_black_trend_graph("OLYMPIC")
+division_black_lm_summary("OLYMPIC")
+
+```
+
+
+Graph basic car units
+```{r echo=FALSE}
+
+```
+
+
+
+
