@@ -41,6 +41,8 @@ division_black_lm_summary <- function(div) {
  summary(lm(ethnicity_percent ~ year, filter(stops_summary_by_year_with_pop, division == div, ethnicity == "BLACK", location == "stops"))) 
 }
 
+
+#In scope:
 division_black_trend_graph("SOUTHEAST")
 division_black_lm_summary("SOUTHEAST")
 
@@ -58,6 +60,55 @@ division_black_lm_summary("HOLLYWOOD")
 
 division_black_trend_graph("OLYMPIC")
 division_black_lm_summary("OLYMPIC")
+
+#Out of scope:
+division_black_trend_graph("77TH STREET")
+division_black_lm_summary("77TH STREET")
+
+division_black_trend_graph("WILSHIRE")
+division_black_lm_summary("WILSHIRE")
+
+division_black_trend_graph("PACIFIC")
+division_black_lm_summary("PACIFIC")
+
+division_black_trend_graph("HARBOR")
+division_black_lm_summary("HARBOR")
+
+division_black_trend_graph("DEVONSHIRE")
+division_black_lm_summary("DEVONSHIRE")
+
+division_black_trend_graph("NORTH HOLLYWOOD")
+division_black_lm_summary("NORTH HOLLYWOOD")
+
+division_black_trend_graph("TOPANGA")
+division_black_lm_summary("TOPANGA")
+
+division_black_trend_graph("VAN NUYS")
+division_black_lm_summary("VAN NUYS")
+
+division_black_trend_graph("RAMPART")
+division_black_lm_summary("RAMPART")
+
+division_black_trend_graph("WEST LOS ANGELES")
+division_black_lm_summary("WEST LOS ANGELES")
+
+division_black_trend_graph("WEST VALLEY")
+division_black_lm_summary("WEST VALLEY")
+
+division_black_trend_graph("FOOTHILL")
+division_black_lm_summary("FOOTHILL")
+
+division_black_trend_graph("NORTHEAST")
+division_black_lm_summary("NORTHEAST")
+
+division_black_trend_graph("MISSION")
+division_black_lm_summary("MISSION")
+
+division_black_trend_graph("HOLLENBECK")
+division_black_lm_summary("HOLLENBECK")
+
+division_black_trend_graph("CITY TOTAL")
+division_black_lm_summary("CITY TOTAL")
 
 ```
 
