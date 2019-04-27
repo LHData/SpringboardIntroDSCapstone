@@ -96,16 +96,16 @@ city_wide_percentages
 
 ```
 
-According to the [Census.gov website](https://www.census.gov/quickfacts/fact/table/losangelescitycalifornia,losangelescountycalifornia/POP010210), Los Angelos had a population of 3.79 million people in 2010. This is very close to the 3.73 million reported in our census data set from the neighborhood council. The percentages by each ethnicity also match well. It looks like our calculation for the hispanic population will work.
+According to the [Census.gov website](https://www.census.gov/quickfacts/fact/table/losangelescitycalifornia,losangelescountycalifornia/POP010210), Los Angeles had a population of 3.79 million people in 2010. This is very close to the 3.73 million reported in our census data set from the neighborhood council. The percentages by each ethnicity also match well. It looks like our calculation for the hispanic population will work.
 
-Now, let's combine all ethnicities that represent less than 2% of the population as "other." We'll change the ethnicity column in stops_data but leave the ethnicity_code column alone in case we need the original values later. 
+Now, let's combine all ethnicities that represent less than 2% of the population as "other." We'll change the ethnicity column in stops_data but leave the ethnicity_code column alone in case we need the original values later. Then write the results to a csv. 
 ```{r}
 unique(stops_data$ethnicity)
 stops_data <- stops_data %>% 
   mutate(ethnicity = ifelse(ethnicity %in% c("OTHER", "AMERICAN INDIAN", "MULTI-DESCENTS"), "OTHER", ethnicity))
 unique(stops_data$ethnicity)
 
-
+write_csv(stops_data, path = "C:/Users/lahebert.REDMOND/Documents/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/stops_data_clean.csv")
 ```
 Add a column to the census_data called All_other_pop with the sum of the populations of ethnic groups with less than 2% of the population.  
 ```{r}
@@ -241,4 +241,28 @@ basic_car_pedestrian_ethnicity_all_years <- stops_data %>%
     rename(basic_car = stop_basic_car) 
 
 
+```
+
+Create some officer-based data sets.
+```{r}
+officer_total_stops_by_year <- stops_data %>% 
+  filter(!is.na(stop_division), !is.na(year)) %>%
+  group_by(stop_division, officer_1_serial, year) %>% 
+  summarise(stops_count = n()) %>%
+  rename(division = stop_division)
+
+officer_black_stops_by_division_and_year <- stops_data %>% 
+  filter(!is.na(stop_division), !is.na(officer_1_serial), !is.na(year), ethnicity =="BLACK") %>%
+  group_by(stop_division, officer_1_serial, year) %>% 
+  summarise(black_stops = n()) %>%
+  rename(division = stop_division) %>%
+  left_join(officer_total_stops_by_year) %>%
+  rename(total_stops = stops_count) %>%
+  mutate(officer_black_stop_percent = black_stops/total_stops) %>%
+  left_join(select(division_pop, division, BLACK)) %>%
+  rename(division_black__population_percent = BLACK) %>%
+  left_join(select(filter(stops_summary_by_year, ethnicity == "BLACK", location == "stops"), division, ethnicity_percent)) %>%
+  rename(division_black_stop_percent = ethnicity_percent)
+
+write_csv(officer_black_stops_by_division_and_year, path = "C:/Users/lahebert.REDMOND/Documents/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/officer_black_stops_by_division_and_year.csv")
 ```
