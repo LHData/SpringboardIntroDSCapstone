@@ -242,7 +242,7 @@ stops_data &lt;- read_csv(&quot;Vehicle_and_Pedestrian_Stop_Data_2010_to_Present
         `Stop Time` = col_time(format = &quot;%H:%M&quot;)))
 names(stops_data) = c(&quot;stop_number&quot;, &quot;form_reference_number&quot;, &quot;gender_code&quot;, &quot;ethnicity_code&quot;, &quot;ethnicity&quot;, &quot;date&quot;, &quot;time&quot;, &quot;officer_1_serial&quot;, &quot;officer_1_division_num&quot;, &quot;division_1&quot;, &quot;officer_2_serial&quot;, &quot;Officer_2_division_num&quot;, &quot;division_2&quot;, &quot;reporting_district&quot;, &quot;stop_type&quot;, &quot;post_stop_activity&quot;)
 
-division_populations_all &lt;- read_csv(&quot;Division_populations.csv&quot;)</code></pre>
+division_populations_all &lt;- read_csv(&quot;Division_populations.csv&quot;) </code></pre>
 <pre><code>## Parsed with column specification:
 ## cols(
 ##   division = col_character(),
@@ -258,7 +258,7 @@ division_populations_all &lt;- read_csv(&quot;Division_populations.csv&quot;)</c
 ##   hispanic_percent = col_double(),
 ##   other_percent = col_double()
 ## )</code></pre>
-<pre class="r"><code>division_pop &lt;- Division_populations &lt;- read_csv(&quot;Division_populations.csv&quot;, 
+<pre class="r"><code>division_pop &lt;- read_csv(&quot;Division_populations.csv&quot;, 
     col_types = cols(Asian_pop = col_skip(), 
         Black_pop = col_skip(), Hispanic_pop = col_skip(), 
         Other_pop = col_skip(), White_pop = col_skip(), 
@@ -300,8 +300,8 @@ city_wide_percentages &lt;- census_data[,3:10] %&gt;%
 ## 1 0.2786887 0.09032228  0.001656504 0.1136676 0.001665522    0.4917433
 ##     Other_pop  Multi_pop
 ## 1 0.002771385 0.01948472</code></pre>
-<p>According to the <a href="https://www.census.gov/quickfacts/fact/table/losangelescitycalifornia,losangelescountycalifornia/POP010210">Census.gov website</a>, Los Angelos had a population of 3.79 million people in 2010. This is very close to the 3.73 million reported in our census data set from the neighborhood council. The percentages by each ethnicity also match well. It looks like our calculation for the hispanic population will work.</p>
-<p>Now, let’s combine all ethnicities that represent less than 2% of the population as “other.” We’ll change the ethnicity column in stops_data but leave the ethnicity_code column alone in case we need the original values later.</p>
+<p>According to the <a href="https://www.census.gov/quickfacts/fact/table/losangelescitycalifornia,losangelescountycalifornia/POP010210">Census.gov website</a>, Los Angeles had a population of 3.79 million people in 2010. This is very close to the 3.73 million reported in our census data set from the neighborhood council. The percentages by each ethnicity also match well. It looks like our calculation for the hispanic population will work.</p>
+<p>Now, let’s combine all ethnicities that represent less than 2% of the population as “other.” We’ll change the ethnicity column in stops_data but leave the ethnicity_code column alone in case we need the original values later. Then write the results to a csv.</p>
 <pre class="r"><code>unique(stops_data$ethnicity)</code></pre>
 <pre><code>## [1] &quot;BLACK&quot;           &quot;WHITE&quot;           &quot;ASIAN&quot;           &quot;OTHER&quot;          
 ## [5] &quot;HISPANIC&quot;        &quot;AMERICAN INDIAN&quot; &quot;MULTI-DESCENTS&quot;</code></pre>
@@ -309,6 +309,7 @@ city_wide_percentages &lt;- census_data[,3:10] %&gt;%
   mutate(ethnicity = ifelse(ethnicity %in% c(&quot;OTHER&quot;, &quot;AMERICAN INDIAN&quot;, &quot;MULTI-DESCENTS&quot;), &quot;OTHER&quot;, ethnicity))
 unique(stops_data$ethnicity)</code></pre>
 <pre><code>## [1] &quot;BLACK&quot;    &quot;WHITE&quot;    &quot;ASIAN&quot;    &quot;OTHER&quot;    &quot;HISPANIC&quot;</code></pre>
+<pre class="r"><code>write_csv(stops_data, path = &quot;C:/Users/lahebert.REDMOND/Documents/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/stops_data_clean.csv&quot;)</code></pre>
 <p>Add a column to the census_data called All_other_pop with the sum of the populations of ethnic groups with less than 2% of the population.</p>
 <pre class="r"><code>census_data &lt;- census_data %&gt;% mutate(
   All_other_pop = 
@@ -317,7 +318,7 @@ unique(stops_data$ethnicity)</code></pre>
     Other_pop + 
     Multi_pop
 )</code></pre>
-<p>Create two data sets: one with stop percentage by ethnicity for each division for all years. The second will be the same thing, just for 2010 (the year the census data is from). For each data set, add data with the ethnicity data by division populations for the neighborhood.</p>
+<p>Create some data sets: one with stop percentage by ethnicity for each division for all years. The second will have the same data broken out by year. For each data set, add data with the ethnicity data by division populations for the neighborhood.</p>
 <pre class="r"><code>stops_summary_all_years &lt;- stops_data %&gt;% 
   filter(!is.na(stop_division)) %&gt;%
   group_by(stop_division, ethnicity) %&gt;%
@@ -326,25 +327,162 @@ unique(stops_data$ethnicity)</code></pre>
   mutate(location = &quot;stops&quot;) %&gt;%
   rename(division = stop_division)
 
-stops_summary_all_years$ethnicity_count = NULL
+stops_summary_ethnicity_totals_all_years &lt;- stops_data %&gt;% 
+  filter(!is.na(stop_division)) %&gt;%
+  group_by(ethnicity) %&gt;%
+  summarise(ethnicity_count = n()) %&gt;%
+  mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count)) %&gt;%
+  mutate(location = &quot;stops&quot;) %&gt;% 
+  mutate(division = &quot;CITY TOTAL&quot;)
 
-stops_summary_2010 &lt;- stops_data %&gt;% 
-  filter(year == 2010, !is.na(stop_division)) %&gt;%
-  group_by(stop_division, ethnicity) %&gt;%
+stops_summary_ethnicity_totals_all_years &lt;- stops_summary_ethnicity_totals_all_years[c(5,1,2,3,4)]
+stops_summary_all_years &lt;- bind_rows(stops_summary_all_years, stops_summary_ethnicity_totals_all_years)
+
+stops_summary_by_year &lt;- stops_data %&gt;% 
+  filter(!is.na(stop_division)) %&gt;%
+  group_by(stop_division, year, ethnicity) %&gt;%
   summarise(ethnicity_count = n()) %&gt;%
   mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count)) %&gt;%
   mutate(location = &quot;stops&quot;) %&gt;%
   rename(division = stop_division)
 
-stops_summary_2010$ethnicity_count = NULL
+stops_summary_ethnicity_totals_by_year &lt;- stops_data %&gt;% 
+  filter(!is.na(stop_division), year != 1900) %&gt;%
+  group_by(year, ethnicity) %&gt;%
+  summarise(ethnicity_count = n()) %&gt;%
+  mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count)) %&gt;%
+  mutate(location = &quot;stops&quot;) %&gt;%
+  mutate(division = &quot;CITY TOTAL&quot;)
 
-#reshape division_pop so that is in the same form as stops_summary
-division_pop &lt;- division_pop %&gt;%
-  gather(&quot;ethnicity&quot;, &quot;ethnicity_percent&quot;, 2:6) %&gt;%
-  mutate(location = &quot;population&quot;)
+stops_summary_ethnicity_totals_by_year &lt;- stops_summary_ethnicity_totals_by_year[c(6,1,2,3,4,5)]
+stops_summary_by_year &lt;- bind_rows(stops_summary_by_year, stops_summary_ethnicity_totals_by_year)
 
-stops_summary_all_years_with_pop &lt;- bind_rows(stops_summary_all_years, division_pop)
-stops_summary_2010_with_pop &lt;- bind_rows(stops_summary_2010, division_pop)</code></pre>
+#division_populations_all so that it is in the same form as stops_summary. Call it division_pop_gathered
+division_counts &lt;- division_populations_all[1:7] %&gt;% 
+  rename(WHITE = White_pop, BLACK = Black_pop, ASIAN = Asian_pop, HISPANIC = Hispanic_pop, OTHER = Other_pop) %&gt;%
+  gather(&quot;ethnicity&quot;, &quot;ethnicity_count&quot;, 2:7) 
+division_percents &lt;- division_populations_all %&gt;%
+  select(1,8:12) %&gt;%
+  rename(WHITE = white_percent, BLACK = black_percent, ASIAN = asian_percent, HISPANIC = hispanic_percent, OTHER = other_percent)  %&gt;%
+  gather(&quot;ethnicity&quot;, &quot;ethnicity_percent&quot;, 2:6)
+
+division_pop_gathered &lt;- left_join(division_counts,division_percents) %&gt;%
+  mutate(location = &quot;population&quot;)</code></pre>
+<pre><code>## Joining, by = c(&quot;division&quot;, &quot;ethnicity&quot;)</code></pre>
+<pre class="r"><code>stops_summary_all_years_with_pop &lt;- bind_rows(stops_summary_all_years, division_pop_gathered)
+stops_summary_by_year_with_pop &lt;- bind_rows(stops_summary_by_year, mutate(division_pop_gathered, year = 2010))
+
+write_csv(stops_summary_all_years_with_pop, path = &quot;C:/Users/lahebert.REDMOND/Documents/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/stops_summary_all_years_with_pop.csv&quot;)
+write_csv(stops_summary_by_year_with_pop, path = &quot;C:/Users/lahebert.REDMOND/Documents/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/stops_summary_by_year_with_pop.csv&quot;)</code></pre>
+<p>Create some data sets: one with stop percentage by ethnicity for each division for all years. The second will have the same data broken out by year. For each data set, add data with the ethnicity data by division populations for the neighborhood.</p>
+<pre class="r"><code>#Get the percentage of each stop type broken down by ethnicity
+stop_type_by_ethnicity_citywide_all_years &lt;- stops_data %&gt;% 
+  filter(!is.na(stop_type)) %&gt;%
+  group_by(stop_type, ethnicity) %&gt;%
+  summarise(ethnicity_count = n()) %&gt;%
+  mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count)) %&gt;%
+  mutate(division = &quot;CITY TOTAL&quot;)
+
+#Add city-wide total 
+stop_type_by_ethnicity_citywide_all_years &lt;- 
+  division_pop_gathered %&gt;%
+  filter(division == &quot;CITY TOTAL&quot;, !is.na(ethnicity_percent)) %&gt;%
+  rename(stop_type = location) %&gt;%
+  bind_rows(stop_type_by_ethnicity_citywide_all_years)
+
+stop_type_by_ethnicity_citywide_by_year &lt;- stops_data %&gt;% 
+  filter(!is.na(stop_type)) %&gt;%
+  group_by(year, stop_type, ethnicity) %&gt;%
+  summarise(ethnicity_count = n()) %&gt;%
+  mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count)) %&gt;%
+  mutate(division = &quot;CITY TOTAL&quot;)
+
+
+#Get the percentage of each ethnicity broken down by stop type
+ethnicity_by_stop_type_citywide_all_years &lt;- stops_data %&gt;% 
+  filter(!is.na(stop_type)) %&gt;%
+  group_by(ethnicity, stop_type) %&gt;%
+  summarise(ethnicity_count = n()) %&gt;%
+  mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count)) #%&gt;%
+  #mutate(division = &quot;CITY TOTAL&quot;)
+
+ethnicity_by_stop_type_citywide_all_years &lt;-
+  bind_rows(ethnicity_by_stop_type_citywide_all_years, 
+            ethnicity_by_stop_type_citywide_all_years %&gt;% 
+              group_by(stop_type) %&gt;%
+              summarize(ethnicity_count = sum(ethnicity_count)) %&gt;%
+              mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count)) %&gt;% 
+              mutate(ethnicity = &quot;ALL&quot;)
+            )
+#Get the percentage of each ethnicity broken down by stop type for each division and year
+ethnicity_by_stop_type_divisions_by_year &lt;- stops_data %&gt;%
+  filter(!is.na(stop_type), !is.na(stop_division)) %&gt;%
+  group_by(stop_division, year, ethnicity, stop_type) %&gt;%
+  summarise(ethnicity_count = n()) %&gt;%
+  mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count)) %&gt;%
+  rename(division = stop_division)
+
+ethnicity_by_stop_type_divisions_by_year &lt;- 
+  bind_rows(ethnicity_by_stop_type_divisions_by_year,
+            stops_data %&gt;% 
+              filter(!is.na(stop_type), !is.na(stop_division)) %&gt;%
+              group_by(stop_division, year, stop_type) %&gt;%
+              summarise(ethnicity_count = n()) %&gt;%
+              mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count)) %&gt;%
+              mutate(ethnicity = &quot;ALL&quot;) %&gt;%
+              rename(division = stop_division)
+            )
+
+write_csv(stop_type_by_ethnicity_citywide_all_years, path = &quot;C:/Users/lahebert.REDMOND/Documents/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/stop_type_by_ethnicity_citywide_all_years.csv&quot;)
+write_csv(ethnicity_by_stop_type_citywide_all_years, path = &quot;C:/Users/lahebert.REDMOND/Documents/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/ethnicity_by_stop_type_citywide_all_years.csv&quot;)
+write_csv(ethnicity_by_stop_type_divisions_by_year, path = &quot;C:/Users/lahebert.REDMOND/Documents/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/ethnicity_by_stop_type_divisions_by_year.csv&quot;)</code></pre>
+<p>Create data sets similar to stops_summary_all_years and stops_summary_by_year but instead of being rolled up by division, it’s rolled up by basic car unit</p>
+<pre class="r"><code>basic_car_ethnicity_all_years &lt;- stops_data %&gt;% 
+  filter(!is.na(stop_division)) %&gt;%
+  group_by(stop_basic_car, ethnicity) %&gt;%
+  summarise(ethnicity_count = n()) %&gt;%
+  mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count))  %&gt;%
+  rename(basic_car = stop_basic_car) %&gt;%
+  left_join(unique(select(reporting_districts, basic_car, division)), &quot;basic_car&quot;)
+
+basic_car_ethnicity_by_year &lt;- stops_data %&gt;% 
+  filter(!is.na(stop_division)) %&gt;%
+  group_by(stop_basic_car, year, ethnicity) %&gt;%
+  summarise(ethnicity_count = n()) %&gt;%
+  mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count)) %&gt;%
+  rename(basic_car = stop_basic_car) %&gt;% 
+  left_join(unique(select(reporting_districts, basic_car, division)), &quot;basic_car&quot;)
+
+basic_car_pedestrian_ethnicity_all_years &lt;- stops_data %&gt;% 
+    filter(!is.na(stop_division), !is.na(stop_type)) %&gt;%
+    group_by(stop_basic_car, stop_type, ethnicity) %&gt;%
+    summarise(ethnicity_count = n()) %&gt;%
+    mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count))  %&gt;%
+    rename(basic_car = stop_basic_car) </code></pre>
+<p>Create some officer-based data sets.</p>
+<pre class="r"><code>officer_total_stops_by_year &lt;- stops_data %&gt;% 
+  filter(!is.na(stop_division), !is.na(year)) %&gt;%
+  group_by(stop_division, officer_1_serial, year) %&gt;% 
+  summarise(stops_count = n()) %&gt;%
+  rename(division = stop_division)
+
+officer_black_stops_by_division_and_year &lt;- stops_data %&gt;% 
+  filter(!is.na(stop_division), !is.na(officer_1_serial), !is.na(year), ethnicity ==&quot;BLACK&quot;) %&gt;%
+  group_by(stop_division, officer_1_serial, year) %&gt;% 
+  summarise(black_stops = n()) %&gt;%
+  rename(division = stop_division) %&gt;%
+  left_join(officer_total_stops_by_year) %&gt;%
+  rename(total_stops = stops_count) %&gt;%
+  mutate(officer_black_stop_percent = black_stops/total_stops) %&gt;%
+  left_join(select(division_pop, division, BLACK)) %&gt;%
+  rename(division_black__population_percent = BLACK) %&gt;%
+  left_join(select(filter(stops_summary_by_year, ethnicity == &quot;BLACK&quot;, location == &quot;stops&quot;), division, ethnicity_percent)) %&gt;%
+  rename(division_black_stop_percent = ethnicity_percent)</code></pre>
+<pre><code>## Joining, by = c(&quot;division&quot;, &quot;officer_1_serial&quot;, &quot;year&quot;)</code></pre>
+<pre><code>## Joining, by = &quot;division&quot;</code></pre>
+<pre><code>## Adding missing grouping variables: `year`</code></pre>
+<pre><code>## Joining, by = c(&quot;division&quot;, &quot;year&quot;)</code></pre>
+<pre class="r"><code>write_csv(officer_black_stops_by_division_and_year, path = &quot;C:/Users/lahebert.REDMOND/Documents/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/officer_black_stops_by_division_and_year.csv&quot;)</code></pre>
 </div>
 
 
