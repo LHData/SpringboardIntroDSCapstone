@@ -136,7 +136,7 @@ stops_summary_all_years_with_pop %>%
   spread(key = location, value = ethnicity_percent) %>% 
   ggplot(aes(x=population, y= stops, col = ethnicity)) + 
   geom_point() + 
-  ggtitle("Stops by Population Percentage")
+  ggtitle("Division Ethnicities Stops by Population Percentage")
 ```
 
 Let's create a data set with only data for the black population. This will help us identify the points above the regression line.
