@@ -209,10 +209,40 @@ ethnicity_by_stop_type_citywide_all_years <- stops_data %>%
   filter(!is.na(stop_type)) %>%
   group_by(ethnicity, stop_type) %>%
   summarise(ethnicity_count = n()) %>%
+  mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count)) #%>%
+  #mutate(division = "CITY TOTAL")
+
+ethnicity_by_stop_type_citywide_all_years <-
+  bind_rows(ethnicity_by_stop_type_citywide_all_years, 
+            ethnicity_by_stop_type_citywide_all_years %>% 
+              group_by(stop_type) %>%
+              summarize(ethnicity_count = sum(ethnicity_count)) %>%
+              mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count)) %>% 
+              mutate(ethnicity = "ALL")
+            )
+#Get the percentage of each ethnicity broken down by stop type for each division and year
+ethnicity_by_stop_type_divisions_by_year <- stops_data %>%
+  filter(!is.na(stop_type), !is.na(stop_division)) %>%
+  group_by(stop_division, year, ethnicity, stop_type) %>%
+  summarise(ethnicity_count = n()) %>%
   mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count)) %>%
-  mutate(division = "CITY TOTAL")
+  rename(division = stop_division)
+
+ethnicity_by_stop_type_divisions_by_year <- 
+  bind_rows(ethnicity_by_stop_type_divisions_by_year,
+            stops_data %>% 
+              filter(!is.na(stop_type), !is.na(stop_division)) %>%
+              group_by(stop_division, year, stop_type) %>%
+              summarise(ethnicity_count = n()) %>%
+              mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count)) %>%
+              mutate(ethnicity = "ALL") %>%
+              rename(division = stop_division)
+            )
 
 write_csv(stop_type_by_ethnicity_citywide_all_years, path = "C:/Users/lahebert.REDMOND/Documents/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/stop_type_by_ethnicity_citywide_all_years.csv")
+write_csv(ethnicity_by_stop_type_citywide_all_years, path = "C:/Users/lahebert.REDMOND/Documents/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/ethnicity_by_stop_type_citywide_all_years.csv")
+write_csv(ethnicity_by_stop_type_divisions_by_year, path = "C:/Users/lahebert.REDMOND/Documents/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/ethnicity_by_stop_type_divisions_by_year.csv")
+
 
 ```
 Create data sets similar to stops_summary_all_years and stops_summary_by_year but instead of being rolled up by division, it's rolled up by basic car unit
