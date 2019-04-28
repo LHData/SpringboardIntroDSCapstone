@@ -13,6 +13,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(ggplot2)
 library(readr)
 library(dplyr)
+library(tidyr)
 # library(tidyr)
 # stops_summary_all_years_with_pop <- read_csv("~/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/stops_summary_all_years_with_pop.csv")
 stops_summary_by_year_with_pop <- read_csv("~/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/stops_summary_by_year_with_pop.csv", 
@@ -113,11 +114,51 @@ division_black_lm_summary("CITY TOTAL")
 ```
 
 
-Graph basic car units
+Yearly graphs of black percentages of stops to population
 ```{r echo=FALSE}
+graph_black_percentages_divisions_year <- function(yr) {
+  stops_summary_by_year_with_pop %>%
+  filter(division != "CITY TOTAL", year == yr | location == "population", ethnicity == "BLACK") %>%
+  select(1,3,5,6) %>%
+  spread(key = location, value = ethnicity_percent) %>%
+  ggplot(aes(x=population, y=stops, col = division)) + 
+    geom_point() + ylim(0,.7) +
+  ggtitle(paste("Black percentages by divsion ", yr))
+}
+
+graph_black_percentages_divisions_year(2010)
+graph_black_percentages_divisions_year(2011)
+graph_black_percentages_divisions_year(2012)
+graph_black_percentages_divisions_year(2013)
+graph_black_percentages_divisions_year(2014)
+graph_black_percentages_divisions_year(2015)
+graph_black_percentages_divisions_year(2016)
+graph_black_percentages_divisions_year(2017)
+graph_black_percentages_divisions_year(2018)
 
 ```
 
+
+Graph vehicular vs pedestrians stops
+
+```{r echo=FALSE}
+officer_black_stops_by_division_and_year <- read_csv("~/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/officer_black_stops_by_division_and_year.csv")
+
+#officer_black_stops_by_division_and_year %>%
+#  filter(year == 2018, division == "HOLLYWOOD") %>%
+#  ggplot(aes(total_stops)) + geom_histogram(binwidth = 100)
+
+off_div_black_perc_hist <- function(y, div, bw) {
+  officer_black_stops_by_division_and_year %>%
+    filter(year == y, division == div, total_stops >= 100) %>%
+    ggplot(aes(officer_black_stop_percent)) + geom_histogram(binwidth = bw)
+}
+
+off_div_black_perc_hist(2018, "HOLLYWOOD", 0.05)
+
+
+
+```
 
 
 
