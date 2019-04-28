@@ -1,0 +1,104 @@
+---
+title: "Capstone_Regression_Model"
+author: "Lael Hebert"
+date: "April 28, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load packages and data
+
+
+```{r}
+library(readr)
+library(dplyr)
+library(ggplot2)
+division_by_year_summary <- read_csv("~/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/division_by_year_summary.csv")
+str(division_by_year_summary)
+
+```
+
+## Graphs
+graph some potential inputs to a linear model for black stop percentage
+```{r}
+division_by_year_summary %>%
+  filter(division != "CITY TOTAL") %>% 
+  ggplot(aes(x = year, y = black_stop_percent)) + geom_point() + 
+  geom_smooth(method = 'lm', formula = y~x) +
+  ggtitle("Year verses black stop percentage")
+
+summary(lm(black_stop_percent ~ year, filter(division_by_year_summary, division != "CITY TOTAL")))
+
+division_by_year_summary %>%
+  filter(division != "CITY TOTAL") %>% 
+  ggplot(aes(x = black_pop_percent, y = black_stop_percent)) + geom_point() + 
+  geom_smooth(method = 'lm', formula = y~x) +
+  ggtitle("Black population percentage verses black stop percentage")
+
+summary(lm(black_stop_percent ~ black_pop_percent, filter(division_by_year_summary, division != "CITY TOTAL")))
+
+division_by_year_summary %>%
+  filter(division != "CITY TOTAL") %>% 
+  ggplot(aes(x = total_pop, y = black_stop_percent)) + geom_point() + 
+  geom_smooth(method = 'lm', formula = y~x) +
+  ggtitle("Total population verses black stop percentage")
+
+summary(lm(black_stop_percent ~ total_pop, filter(division_by_year_summary, division != "CITY TOTAL")))
+
+division_by_year_summary %>%
+  filter(division != "CITY TOTAL") %>% 
+  ggplot(aes(x = stop_to_pop_ratio, y = black_stop_percent)) + geom_point() + 
+  geom_smooth(method = 'lm', formula = y~x) +
+  ggtitle("Stop top population verses black stop percentage")
+
+summary(lm(black_stop_percent ~ stop_to_pop_ratio, filter(division_by_year_summary, division != "CITY TOTAL")))
+
+division_by_year_summary %>%
+  filter(division != "CITY TOTAL") %>% 
+  ggplot(aes(x = vehicular_stop_percent, y = black_stop_percent)) + geom_point() + 
+  geom_smooth(method = 'lm', formula = y~x) +
+  ggtitle("Vehicular stop percentage verses black stop percentage")
+
+summary(lm(black_stop_percent ~ vehicular_stop_percent, filter(division_by_year_summary, division != "CITY TOTAL")))
+
+
+division_by_year_summary %>%
+  filter(division != "CITY TOTAL") %>% 
+  ggplot(aes(x = total_stop_count, y = black_stop_percent)) + geom_point() + 
+  geom_smooth(method = 'lm', formula = y~x) +
+  ggtitle("Total stop count verses black stop percentage")
+
+summary(lm(black_stop_percent ~ total_stop_count, filter(division_by_year_summary, division != "CITY TOTAL")))
+
+```
+
+## Linear model for black stop percent
+Let's look at a correlaton matrix for division_by_year_summary and then let's look at at linear model for black stop percentage
+```{r}
+cor(filter(division_by_year_summary, division != "CITY TOTAL")[,2:26])
+
+#Let's look at a linear model for black_stop_percent by black_pop_percentage:
+summary(lm(black_stop_percent ~ black_pop_percent, filter(division_by_year_summary, division != "CITY TOTAL")))
+
+#black_pop_percentage explains most of the variation. Let's look at 6 possible drivers of black_stop_percentage
+summary(lm(black_stop_percent ~ year + black_pop_percent + total_pop + stop_to_pop_ratio + vehicular_stop_percent + total_stop_count, filter(division_by_year_summary, division != "CITY TOTAL")))
+
+#Let's remove both year and total_stop_count
+summary(lm(black_stop_percent ~ black_pop_percent + total_pop + stop_to_pop_ratio + vehicular_stop_percent, filter(division_by_year_summary, division != "CITY TOTAL")))
+
+#It looks like removing those two varialbe kept the model pretty much the same. Now let's try removing stop_to_pop_ratio
+summary(lm(black_stop_percent ~ black_pop_percent + total_pop + vehicular_stop_percent, filter(division_by_year_summary, division != "CITY TOTAL")))
+
+#It looks like stop_to_pop ratio can also be removed from the model. Let's try two more models. One with total_pop removed, the other with vehicular_stop_percent removed. 
+summary(lm(black_stop_percent ~ black_pop_percent + vehicular_stop_percent, filter(division_by_year_summary, division != "CITY TOTAL")))
+summary(lm(black_stop_percent ~ black_pop_percent + total_pop, filter(division_by_year_summary, division != "CITY TOTAL")))
+
+#It looks like both total_pop and vehicular_stop_percent amdke contributions to the model. 
+
+```
+
+#Conclusions
+It looks like the best model for black stop percenatge uses black population percentage, total population and vehicular stop percentage. The model is mostly driven by the black population percentage. Unsuprisingly, the larger the black population, the larger the percenatage of black stops. The total population also drives the model. There is a negative correlation between the total population of a division and the percentage of traffic stops that ar of black people. There is also a negative correlation between the percentage of stops that ar vehicular and the percentage of black stops. 
