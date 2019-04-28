@@ -197,7 +197,7 @@ stop_type_by_ethnicity_citywide_all_years <-
   bind_rows(stop_type_by_ethnicity_citywide_all_years)
 
 stop_type_by_ethnicity_citywide_by_year <- stops_data %>% 
-  filter(!is.na(stop_type)) %>%
+  filter(!is.na(stop_type), year >= 2010) %>%
   group_by(year, stop_type, ethnicity) %>%
   summarise(ethnicity_count = n()) %>%
   mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count)) %>%
@@ -222,7 +222,7 @@ ethnicity_by_stop_type_citywide_all_years <-
             )
 #Get the percentage of each ethnicity broken down by stop type for each division and year
 ethnicity_by_stop_type_divisions_by_year <- stops_data %>%
-  filter(!is.na(stop_type), !is.na(stop_division)) %>%
+  filter(!is.na(stop_type), !is.na(stop_division), year >= 2010) %>%
   group_by(stop_division, year, ethnicity, stop_type) %>%
   summarise(ethnicity_count = n()) %>%
   mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count)) %>%
@@ -239,9 +239,37 @@ ethnicity_by_stop_type_divisions_by_year <-
               rename(division = stop_division)
             )
 
+#Get a table of vehicular stop percentage by year for each division:
+division_vehicular_stop_percentage_by_year <-
+  ethnicity_by_stop_type_divisions_by_year %>% 
+  group_by(division, year, stop_type) %>% 
+  summarise(ethnicity_count = sum(ethnicity_count)) %>% 
+  mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count)) %>% 
+  filter(stop_type == "VEH") %>%
+  rename(vehicular_stop_percent = ethnicity_percent) %>%
+  filter(!is.na(year)) 
+
+division_vehicular_stop_percentage_all_years <- 
+  ethnicity_by_stop_type_divisions_by_year %>% 
+  group_by(year, stop_type) %>% 
+  summarise(ethnicity_count = sum(ethnicity_count)) %>% 
+  mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count)) %>% 
+  filter(stop_type == "VEH") %>%
+  rename(vehicular_stop_percent = ethnicity_percent) %>%
+  filter(!is.na(year)) %>% 
+  mutate(division = "CITY TOTAL")
+
+division_vehicular_stop_percentage_by_year <-
+  bind_rows(division_vehicular_stop_percentage_by_year, division_vehicular_stop_percentage_all_years)
+
+division_vehicular_stop_percentage_by_year$stop_type = NULL
+division_vehicular_stop_percentage_by_year$ethnicity_count = NULL
+
 write_csv(stop_type_by_ethnicity_citywide_all_years, path = "C:/Users/lahebert.REDMOND/Documents/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/stop_type_by_ethnicity_citywide_all_years.csv")
 write_csv(ethnicity_by_stop_type_citywide_all_years, path = "C:/Users/lahebert.REDMOND/Documents/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/ethnicity_by_stop_type_citywide_all_years.csv")
 write_csv(ethnicity_by_stop_type_divisions_by_year, path = "C:/Users/lahebert.REDMOND/Documents/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/ethnicity_by_stop_type_divisions_by_year.csv")
+write_csv(division_vehicular_stop_percentage_by_year, path = "C:/Users/lahebert.REDMOND/Documents/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/division_vehicular_stop_percentage_by_year.csv")
+
 
 
 ```
@@ -264,11 +292,11 @@ basic_car_ethnicity_by_year <- stops_data %>%
   left_join(unique(select(reporting_districts, basic_car, division)), "basic_car")
 
 basic_car_pedestrian_ethnicity_all_years <- stops_data %>% 
-    filter(!is.na(stop_division), !is.na(stop_type)) %>%
-    group_by(stop_basic_car, stop_type, ethnicity) %>%
-    summarise(ethnicity_count = n()) %>%
-    mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count))  %>%
-    rename(basic_car = stop_basic_car) 
+  filter(!is.na(stop_division), !is.na(stop_type)) %>%
+  group_by(stop_basic_car, stop_type, ethnicity) %>%
+  summarise(ethnicity_count = n()) %>%
+  mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count))  %>%
+  rename(basic_car = stop_basic_car) 
 
 
 ```
@@ -295,4 +323,30 @@ officer_black_stops_by_division_and_year <- stops_data %>%
   rename(division_black_stop_percent = ethnicity_percent)
 
 write_csv(officer_black_stops_by_division_and_year, path = "C:/Users/lahebert.REDMOND/Documents/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/officer_black_stops_by_division_and_year.csv")
+```
+
+Create a data set for a summary of all the division data
+```{r}
+division_stop_ethnicities <-  filter(stops_summary_by_year, location == "stops", year >= 2010)
+division_stop_ethnicities$location = NULL
+
+division_stop_ethnicity_counts <- division_stop_ethnicities %>%
+  select(1,2,3,4) %>%
+  spread(key = ethnicity, value = ethnicity_count) %>%
+  rename(asian_stop_count = ASIAN, black_stop_count = BLACK, hispanic_stop_count = HISPANIC, other_stop_count = OTHER, white_stop_count = WHITE)
+division_stop_ethnicity_percents <- division_stop_ethnicities %>%
+  select(1,2,3,5) %>%
+  spread(key = ethnicity, value = ethnicity_percent) %>%
+  rename(asian_stop_percent = ASIAN, black_stop_percent = BLACK, hispanic_stop_percent = HISPANIC, other_stop_percent = OTHER, white_stop_percent = WHITE)
+
+division_by_year_summary <-
+  left_join(division_stop_ethnicity_counts, division_stop_ethnicity_percents) %>% 
+  left_join(division_populations_all) %>%
+  rename(asian_pop_percent = asian_percent, black_pop_percent = black_percent, hispanic_pop_percent = hispanic_percent, 
+         other_pop_percent = other_percent, white_pop_percent = white_percent) %>%
+  mutate(total_stop_count = asian_stop_count + black_stop_count + hispanic_stop_count + other_stop_count + white_stop_count) %>%
+  mutate(stop_to_pop_ratio = total_stop_count / total_pop) %>%
+  left_join(division_vehicular_stop_percentage_by_year)
+  
+write_csv(division_by_year_summary, path = "C:/Users/lahebert.REDMOND/Documents/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/division_by_year_summary.csv")
 ```

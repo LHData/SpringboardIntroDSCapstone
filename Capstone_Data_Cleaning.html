@@ -391,7 +391,7 @@ stop_type_by_ethnicity_citywide_all_years &lt;-
   bind_rows(stop_type_by_ethnicity_citywide_all_years)
 
 stop_type_by_ethnicity_citywide_by_year &lt;- stops_data %&gt;% 
-  filter(!is.na(stop_type)) %&gt;%
+  filter(!is.na(stop_type), year &gt;= 2010) %&gt;%
   group_by(year, stop_type, ethnicity) %&gt;%
   summarise(ethnicity_count = n()) %&gt;%
   mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count)) %&gt;%
@@ -416,7 +416,7 @@ ethnicity_by_stop_type_citywide_all_years &lt;-
             )
 #Get the percentage of each ethnicity broken down by stop type for each division and year
 ethnicity_by_stop_type_divisions_by_year &lt;- stops_data %&gt;%
-  filter(!is.na(stop_type), !is.na(stop_division)) %&gt;%
+  filter(!is.na(stop_type), !is.na(stop_division), year &gt;= 2010) %&gt;%
   group_by(stop_division, year, ethnicity, stop_type) %&gt;%
   summarise(ethnicity_count = n()) %&gt;%
   mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count)) %&gt;%
@@ -433,9 +433,36 @@ ethnicity_by_stop_type_divisions_by_year &lt;-
               rename(division = stop_division)
             )
 
+#Get a table of vehicular stop percentage by year for each division:
+division_vehicular_stop_percentage_by_year &lt;-
+  ethnicity_by_stop_type_divisions_by_year %&gt;% 
+  group_by(division, year, stop_type) %&gt;% 
+  summarise(ethnicity_count = sum(ethnicity_count)) %&gt;% 
+  mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count)) %&gt;% 
+  filter(stop_type == &quot;VEH&quot;) %&gt;%
+  rename(vehicular_stop_percent = ethnicity_percent) %&gt;%
+  filter(!is.na(year)) 
+
+division_vehicular_stop_percentage_all_years &lt;- 
+  ethnicity_by_stop_type_divisions_by_year %&gt;% 
+  group_by(year, stop_type) %&gt;% 
+  summarise(ethnicity_count = sum(ethnicity_count)) %&gt;% 
+  mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count)) %&gt;% 
+  filter(stop_type == &quot;VEH&quot;) %&gt;%
+  rename(vehicular_stop_percent = ethnicity_percent) %&gt;%
+  filter(!is.na(year)) %&gt;% 
+  mutate(division = &quot;CITY TOTAL&quot;)
+
+division_vehicular_stop_percentage_by_year &lt;-
+  bind_rows(division_vehicular_stop_percentage_by_year, division_vehicular_stop_percentage_all_years)
+
+division_vehicular_stop_percentage_by_year$stop_type = NULL
+division_vehicular_stop_percentage_by_year$ethnicity_count = NULL
+
 write_csv(stop_type_by_ethnicity_citywide_all_years, path = &quot;C:/Users/lahebert.REDMOND/Documents/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/stop_type_by_ethnicity_citywide_all_years.csv&quot;)
 write_csv(ethnicity_by_stop_type_citywide_all_years, path = &quot;C:/Users/lahebert.REDMOND/Documents/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/ethnicity_by_stop_type_citywide_all_years.csv&quot;)
-write_csv(ethnicity_by_stop_type_divisions_by_year, path = &quot;C:/Users/lahebert.REDMOND/Documents/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/ethnicity_by_stop_type_divisions_by_year.csv&quot;)</code></pre>
+write_csv(ethnicity_by_stop_type_divisions_by_year, path = &quot;C:/Users/lahebert.REDMOND/Documents/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/ethnicity_by_stop_type_divisions_by_year.csv&quot;)
+write_csv(division_vehicular_stop_percentage_by_year, path = &quot;C:/Users/lahebert.REDMOND/Documents/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/division_vehicular_stop_percentage_by_year.csv&quot;)</code></pre>
 <p>Create data sets similar to stops_summary_all_years and stops_summary_by_year but instead of being rolled up by division, it’s rolled up by basic car unit</p>
 <pre class="r"><code>basic_car_ethnicity_all_years &lt;- stops_data %&gt;% 
   filter(!is.na(stop_division)) %&gt;%
@@ -454,11 +481,11 @@ basic_car_ethnicity_by_year &lt;- stops_data %&gt;%
   left_join(unique(select(reporting_districts, basic_car, division)), &quot;basic_car&quot;)
 
 basic_car_pedestrian_ethnicity_all_years &lt;- stops_data %&gt;% 
-    filter(!is.na(stop_division), !is.na(stop_type)) %&gt;%
-    group_by(stop_basic_car, stop_type, ethnicity) %&gt;%
-    summarise(ethnicity_count = n()) %&gt;%
-    mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count))  %&gt;%
-    rename(basic_car = stop_basic_car) </code></pre>
+  filter(!is.na(stop_division), !is.na(stop_type)) %&gt;%
+  group_by(stop_basic_car, stop_type, ethnicity) %&gt;%
+  summarise(ethnicity_count = n()) %&gt;%
+  mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count))  %&gt;%
+  rename(basic_car = stop_basic_car) </code></pre>
 <p>Create some officer-based data sets.</p>
 <pre class="r"><code>officer_total_stops_by_year &lt;- stops_data %&gt;% 
   filter(!is.na(stop_division), !is.na(year)) %&gt;%
@@ -483,6 +510,31 @@ officer_black_stops_by_division_and_year &lt;- stops_data %&gt;%
 <pre><code>## Adding missing grouping variables: `year`</code></pre>
 <pre><code>## Joining, by = c(&quot;division&quot;, &quot;year&quot;)</code></pre>
 <pre class="r"><code>write_csv(officer_black_stops_by_division_and_year, path = &quot;C:/Users/lahebert.REDMOND/Documents/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/officer_black_stops_by_division_and_year.csv&quot;)</code></pre>
+<p>Create a data set for a summary of all the division data</p>
+<pre class="r"><code>division_stop_ethnicities &lt;-  filter(stops_summary_by_year, location == &quot;stops&quot;, year &gt;= 2010)
+division_stop_ethnicities$location = NULL
+
+division_stop_ethnicity_counts &lt;- division_stop_ethnicities %&gt;%
+  select(1,2,3,4) %&gt;%
+  spread(key = ethnicity, value = ethnicity_count) %&gt;%
+  rename(asian_stop_count = ASIAN, black_stop_count = BLACK, hispanic_stop_count = HISPANIC, other_stop_count = OTHER, white_stop_count = WHITE)
+division_stop_ethnicity_percents &lt;- division_stop_ethnicities %&gt;%
+  select(1,2,3,5) %&gt;%
+  spread(key = ethnicity, value = ethnicity_percent) %&gt;%
+  rename(asian_stop_percent = ASIAN, black_stop_percent = BLACK, hispanic_stop_percent = HISPANIC, other_stop_percent = OTHER, white_stop_percent = WHITE)
+
+division_by_year_summary &lt;-
+  left_join(division_stop_ethnicity_counts, division_stop_ethnicity_percents) %&gt;% 
+  left_join(division_populations_all) %&gt;%
+  rename(asian_pop_percent = asian_percent, black_pop_percent = black_percent, hispanic_pop_percent = hispanic_percent, 
+         other_pop_percent = other_percent, white_pop_percent = white_percent) %&gt;%
+  mutate(total_stop_count = asian_stop_count + black_stop_count + hispanic_stop_count + other_stop_count + white_stop_count) %&gt;%
+  mutate(stop_to_pop_ratio = total_stop_count / total_pop) %&gt;%
+  left_join(division_vehicular_stop_percentage_by_year)</code></pre>
+<pre><code>## Joining, by = c(&quot;division&quot;, &quot;year&quot;)</code></pre>
+<pre><code>## Joining, by = &quot;division&quot;</code></pre>
+<pre><code>## Joining, by = c(&quot;division&quot;, &quot;year&quot;)</code></pre>
+<pre class="r"><code>write_csv(division_by_year_summary, path = &quot;C:/Users/lahebert.REDMOND/Documents/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/division_by_year_summary.csv&quot;)</code></pre>
 </div>
 
 
