@@ -22,6 +22,7 @@ stops_summary_by_year_with_pop <- read_csv("~/Learning/Springboard/Introduction 
     col_types = cols(ethnicity_count = col_double()))
 stop_type_by_ethnicity_citywide_all_years <- read_csv("~/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/stop_type_by_ethnicity_citywide_all_years.csv")
 ethnicity_by_stop_type_divisions_by_year <- read_csv("~/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/ethnicity_by_stop_type_divisions_by_year.csv")
+ethnicity_by_stop_type_citywide_all_years <- read_csv("~/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/ethnicity_by_stop_type_citywide_all_years.csv")
 
 ```
 
@@ -39,8 +40,12 @@ stops_summary_all_years_with_pop %>%
 Now let's look at ethnic breakdowns by
 Let's look at vehicular versus pedestrian stops.
 ```{r, echo=FALSE}
-ggplot(stop_type_by_ethnicity_citywide_all_years, aes(x= ethnicity, y = ethnicity_percent)) + geom_bar(aes(fill=stop_type), stat= 'identity', position='dodge')
-#ggplot(ethnicity_by_stop_type_citywide_all_years, aes(x= ethnicity, y = ethnicity_percent)) + geom_bar(aes(fill=stop_type), stat= 'identity', position='dodge')
+ggplot(stop_type_by_ethnicity_citywide_all_years, aes(x= ethnicity, y = ethnicity_percent)) + 
+  geom_bar(aes(fill=stop_type), stat= 'identity', position='dodge') +
+  ggtitle("Ethnicity by stop type")
+ggplot(ethnicity_by_stop_type_citywide_all_years, aes(x= ethnicity, y = ethnicity_percent)) + 
+  geom_bar(aes(fill=stop_type), stat= 'identity', position='dodge') +
+  ggtitle("Stop type by ethnicity")
 
 ```
 
@@ -118,7 +123,7 @@ stops_summary_all_years_with_pop %>%
   ggplot(aes(x=population, y=stops)) + 
   geom_point() +
   geom_smooth(method = 'lm', formula = y~x) + 
-  ggtitle("Black counts by divsion ")
+  ggtitle("Black counts by division ")
 
 
 stops_summary_all_years_with_pop %>% 
@@ -128,23 +133,16 @@ stops_summary_all_years_with_pop %>%
   ggplot(aes(x=population, y=stops)) + 
     geom_point() +
     geom_smooth(method = 'lm', formula = y~x) + 
-  ggtitle("Black percentages by divsion ")
+  ggtitle("Black percentages by division ")
 
-stops_summary_by_year_with_pop %>%
-  filter(division != "CITY TOTAL", year == 2010 | location == "population", ethnicity == "BLACK") %>%
-  select(1,3,5,6) %>%
+stops_summary_all_years_with_pop %>% 
+  select(1,2,4,5) %>%
+  filter(ethnicity == "BLACK", division != "CITY TOTAL") %>%
   spread(key = location, value = ethnicity_percent) %>%
-  ggplot(aes(x=population, y=stops, col = division)) + 
-    geom_point() + ylim(0,.7) +
-  ggtitle("Black percentages by divsion 2010")
-
-stops_summary_by_year_with_pop %>%
-  filter(division != "CITY TOTAL", year == 2018 | location == "population", ethnicity == "BLACK") %>%
-  select(1,3,5,6) %>%
-  spread(key = location, value = ethnicity_percent) %>%
-  ggplot(aes(x=population, y=stops, col = division)) + 
-    geom_point() + ylim(0,.7) +
-  ggtitle("Black percentages by divsion 2018")
+  ggplot(aes(x=population, y=stops)) + 
+    geom_point() +
+  geom_abline(slope = 1, intercept = 0, color = 'red') +
+  ggtitle("Black percentages by division")
 
 ```
 Let's look at the percentages graph for all ethnicities
