@@ -28,12 +28,17 @@ ethnicity_by_stop_type_citywide_all_years <- read_csv("~/Learning/Springboard/In
 
 Start by graphing ethnicity_percent by populations and stops city-wide 
 ```{r, echo=FALSE}
+stops_summary_all_years_with_pop %>% 
+  filter(division == "CITY TOTAL",  ethnicity != "total_pop", location == "population") %>%
+    ggplot(aes(x=ethnicity, y = ethnicity_percent)) + 
+    geom_bar(aes(fill = location), stat = 'identity', position = 'dodge') +
+    ggtitle("Ethnicity distributions")
 
 stops_summary_all_years_with_pop %>% 
   filter(division == "CITY TOTAL",  ethnicity != "total_pop") %>%
     ggplot(aes(x=ethnicity, y = ethnicity_percent)) + 
     geom_bar(aes(fill = location), stat = 'identity', position = 'dodge') +
-    ggtitle("CITY TOTAL")
+    ggtitle("Ethnicity distributions")
 
 ```
 
