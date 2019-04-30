@@ -188,14 +188,38 @@ officer_black_stops_by_division_and_year <- read_csv("~/Learning/Springboard/Int
 off_div_black_perc_hist <- function(y, div, bw) {
   officer_black_stops_by_division_and_year %>%
     filter(year == y, division == div, total_stops >= 100) %>%
-    ggplot(aes(officer_black_stop_percent)) + geom_histogram(binwidth = bw)
+    ggplot(aes(officer_black_stop_percent)) + 
+      geom_histogram(binwidth = bw) + 
+      ggtitle(paste("Officer counts for", div, "division"))
 }
 
+off_div_black_perc_hist(2018, "SOUTHEAST", 0.05)
 off_div_black_perc_hist(2018, "HOLLYWOOD", 0.05)
-
-
+off_div_black_perc_hist(2018, "WEST LOS ANGELES", 0.05)
+off_div_black_perc_hist(2018, "CENTRAL", 0.05)
+off_div_black_perc_hist(2018, "NEWTON", 0.05)
+off_div_black_perc_hist(2018, "OLYMPIC", 0.05)
 
 ```
 
+```{r echo=FALSE}
+graph_division__year_distributions <- function(div, yr) {
+  data <- stops_summary_by_year_with_pop
+  index <- data$location == "population"
+  data$year[index] <- "ALL"
+  
+  data %>% 
+    filter(division == div, year == yr | year== "ALL", ethnicity != "total_pop") %>% 
+    ggplot(aes(x=ethnicity, y = ethnicity_percent)) + 
+    geom_bar(aes(fill = location), stat = 'identity', position = 'dodge') + 
+    ggtitle(paste("Ethnicity distributions", div,yr))
+}
 
+graph_division__year_distributions("SOUTHEAST", 2018)
+graph_division__year_distributions("HOLLYWOOD", 2018)
+graph_division__year_distributions("WEST LOS ANGELES", 2018)
+graph_division__year_distributions("CENTRAL", 2018)
+graph_division__year_distributions("NEWTON", 2018)
+graph_division__year_distributions("OLYMPIC", 2018)
 
+```
