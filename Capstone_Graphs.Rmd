@@ -141,9 +141,17 @@ stops_summary_all_years_with_pop %>%
   spread(key = location, value = ethnicity_percent) %>%
   ggplot(aes(x=population, y=stops)) + 
     geom_point() +
+    ylim(0,0.7) + xlim(0,.7) +
   geom_abline(slope = 1, intercept = 0, color = 'red') +
   ggtitle("Black percentages by division")
 
+
+# Line of fairness graph: 
+stops_summary_all_years_with_pop %>% 
+    ggplot() + ylim(0,0.7) + xlim(0,.7) +
+    geom_abline(slope = 1, intercept = 0, color = 'red') +
+    ggtitle("Black percentages by division") +
+    xlab("population") + ylab("stops")
 ```
 Let's look at the percentages graph for all ethnicities
 ```{r, echo=FALSE}
