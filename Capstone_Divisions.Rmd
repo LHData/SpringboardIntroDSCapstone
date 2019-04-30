@@ -189,7 +189,7 @@ off_div_black_perc_hist <- function(y, div, bw) {
   officer_black_stops_by_division_and_year %>%
     filter(year == y, division == div, total_stops >= 100) %>%
     ggplot(aes(officer_black_stop_percent)) + 
-      geom_histogram(binwidth = bw) + 
+      geom_histogram(binwidth = bw, fill="#C77CFF") + 
       ggtitle(paste("Officer counts for", div, "division"))
 }
 
@@ -201,6 +201,8 @@ off_div_black_perc_hist(2018, "NEWTON", 0.05)
 off_div_black_perc_hist(2018, "OLYMPIC", 0.05)
 
 ```
+
+
 
 ```{r echo=FALSE}
 graph_division__year_distributions <- function(div, yr) {
@@ -221,5 +223,39 @@ graph_division__year_distributions("WEST LOS ANGELES", 2018)
 graph_division__year_distributions("CENTRAL", 2018)
 graph_division__year_distributions("NEWTON", 2018)
 graph_division__year_distributions("OLYMPIC", 2018)
+
+```
+
+Identify officers to recommened for anti-bias training
+```{r}
+southeast_officers_2018 <- filter(officer_black_stops_by_division_and_year, 
+                                  division == "SOUTHEAST", year == 2018, total_stops >= 100, officer_black_stop_percent >= 0.625)
+central_officers_2018 <- filter(officer_black_stops_by_division_and_year, 
+                                  division == "CENTRAL", year == 2018, total_stops >= 100, officer_black_stop_percent >= 0.425)
+newton_officers_2018 <- filter(officer_black_stops_by_division_and_year, 
+                                  division == "NEWTON", year == 2018, total_stops >= 100, officer_black_stop_percent >= 0.325)
+hollywood_officers_2018 <- filter(officer_black_stops_by_division_and_year, 
+                                  division == "HOLLYWOOD", year == 2018, total_stops >= 100, officer_black_stop_percent >= 0.375)
+olympic_officers_2018 <- filter(officer_black_stops_by_division_and_year, 
+                                  division == "OLYMPIC", year == 2018, total_stops >= 100, officer_black_stop_percent >= 0.225)
+westLA_officers_2018 <- filter(officer_black_stops_by_division_and_year, 
+                                  division == "WEST LOS ANGELES", year == 2018, total_stops >= 100, officer_black_stop_percent >= 0.225)
+
+officers_for_bias_training <- bind_rows(
+  southeast_officers_2018, 
+  central_officers_2018,
+  newton_officers_2018,
+  hollywood_officers_2018,
+  olympic_officers_2018,
+  westLA_officers_2018)
+
+extra_targeting <- officers_for_bias_training %>% 
+  group_by(officer_1_serial) %>% 
+  summarise(count = n()) %>% 
+  filter(count > 1)
+
+write_csv(officers_for_bias_training, path = "C:/Users/lahebert.REDMOND/Documents/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/officers_for_bias_training.csv")
+
+write_csv(extra_targeting, path = "C:/Users/lahebert.REDMOND/Documents/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/extra_targeting.csv")
 
 ```
