@@ -1,0 +1,716 @@
+---
+title: "LAPD_bias_investigation"
+author: "Lael Hebert"
+date: "May 1, 2019"
+output:
+  html_document:
+    df_print: paged
+---
+
+#Problem
+The purpose of this project is to identify areas of potential bias within vehicle and pedestrian stops made by the Los Angeles Police Department. The results of this study could be used to target areas within the LAPD that could benefit from anti-bias training. The goal is to reduce bias and improve relations and trust between police and community. 
+
+#Client
+There are two main audiences of this analysis: the Los Angeles Police Department and citizen groups interested in police-community relations. 
+
+#Data
+1. Vehicle and Pedestrian Stop Data 2010 to Present
+     + This is the primary data set for this analysis. It contains records on over 7 million traffic stops. It includes information such as gender and ethnicity of the person stopped as well as information on the officer(s) involved in the stop. 
+    + Source: csv file from [data.gov](https://catalog.data.gov/dataset/lapd-vehicle-and-pedestrian-stops-2010-present)
+    + Additional documentation of data fields at the [City of Los Angeles website](https://data.lacity.org/A-Safe-City/Vehicle-and-Pedestrian-Stop-Data-2010-to-Present/ci25-wgt7)
+2. LAPD Reporting districts
+    + A list of the reporting districts within Los Angeles and the precinct (division) and bureau associated with each
+    + Source: csv file from [City of Los Angeles website](http://geohub.lacity.org/datasets/4398360b1a0242b78904f46b3786ae73_0)
+3. Census_Data_by_Neighborhood_Council
+    + This data set contains population counts by ethnicity for Los Angeles neighborhood based on the 2010 census. 
+    + Source: csv file from [data.gov](https://catalog.data.gov/dataset/census-data-by-neighborhood-council)
+    + Additional documentation of data fields at the [City of Los Angeles website](https://data.lacity.org/A-Livable-and-Sustainable-City/Census-Data-by-Neighborhood-Council/nwj3-ufba)
+4. Map of LAPD divisions from the Los Angeles times
+    + This is an interactive map on the [LA Times website](http://maps.latimes.com/lapd/)
+    + Clicking on a division leads to information on which neighborhoods the division patrols
+5. Map of Los Angeles neighborhood councils
+    + This is an interactive map of the [Los Angeles neighborhood councils](https://empowerla.org/city-map/)
+6. [Census.gov](https://www.census.gov/quickfacts/fact/table/losangelescitycalifornia,losangelescountycalifornia/POP010210)
+    + Used for verifying populations ethnicity distributions
+
+
+
+## Data Cleaning 
+### Load packages and data 
+Start by loading packages. Then load all the data into R with good column types. Fix column names.
+```{r}
+library(dplyr)
+library(readr)
+library(lubridate)
+library(stringr)
+library(tidyr)
+library(ggplot2)
+
+census_data <- read_csv("Census_Data_by_Neighborhood_Council.csv", 
+    col_types = cols(Hispanic_pop = col_double(), 
+        Owner_occ = col_skip(), Renter_occ = col_skip()))
+census_data <- rename(census_data, neighborhood = NC_Name, Total_pop = "Total Population")
+
+reporting_districts <- read_csv("LAPD_Reporting_Districts.csv", 
+    col_types = cols(AREA = col_skip(), OBJECTID = col_skip(), 
+        PERIMETER = col_skip(), PREC = col_character(), 
+        REPDIST = col_character(), Shape__Area = col_skip(), 
+        Shape__Length = col_skip()))
+reporting_districts <- rename(reporting_districts, reporting_district = REPDIST, division_number = PREC, division = APREC, bureau = BUREAU, basic_car = BASICCAR)
+
+stops_data <- read_csv("Vehicle_and_Pedestrian_Stop_Data_2010_to_Present.csv", 
+    col_types = cols(`Form Reference Number` = col_character(), 
+        `Officer 1 Serial Number` = col_character(), 
+        `Reporting District` = col_character(), 
+        `Stop Date` = col_date(format = "%m/%d/%Y"), 
+        `Stop Number` = col_character(), 
+        `Stop Time` = col_time(format = "%H:%M")))
+names(stops_data) = c("stop_number", "form_reference_number", "gender_code", "ethnicity_code", "ethnicity", "date", "time", "officer_1_serial", "officer_1_division_num", "division_1", "officer_2_serial", "Officer_2_division_num", "division_2", "reporting_district", "stop_type", "post_stop_activity")
+
+division_populations_all <- read_csv("Division_populations.csv") 
+
+division_pop <- read_csv("Division_populations.csv", 
+    col_types = cols(Asian_pop = col_skip(), 
+        Black_pop = col_skip(), Hispanic_pop = col_skip(), 
+        Other_pop = col_skip(), White_pop = col_skip(), 
+        total_pop = col_skip()))
+division_pop <- rename(division_pop, WHITE = white_percent, BLACK = black_percent, ASIAN = asian_percent, HISPANIC = hispanic_percent, OTHER = other_percent)
+```
+
+### Clean up the stops data
+Add a year column. 
+If the reporting district starts with 0, remove the 0.
+Join the stops data with the reporting districts data to get the division and bureau where the stop took place. 
+Rename the new columns in the stops data.
+
+```{r}
+stops_data <- stops_data %>%
+  mutate(year = year(date)) %>%
+  mutate(reporting_district = ifelse(grepl(pattern = "^0", reporting_district), 
+                                 str_sub(reporting_district, start = 2), reporting_district)) %>%
+  left_join(reporting_districts, "reporting_district") %>%
+  rename(stop_division_number = division_number, stop_division = division, stop_bureau = bureau, stop_basic_car = basic_car)
+
+
+```
+### Clean up the population data
+The population data is missing from the hispanic column in the census data. Fill it in by subtracting the popultions of the other ethnicities from the total population. Calculate the total population of the city. Then created a vector of the percentages of each ethnicity city-wide. 
+
+
+```{r}
+census_data$Hispanic_pop <- census_data$Total_pop - 
+  census_data$White_pop -
+  census_data$Black_pop -
+  census_data$Ameri_es_pop -
+  census_data$Asian_pop -
+  census_data$Hawn_pi_pop -
+  census_data$Other_pop -
+  census_data$Multi_pop
+
+city_pop_total <- sum(census_data$Total_pop)
+city_wide_percentages <- census_data[,3:10] %>%
+  summarise_each(funs(sum))/city_pop_total
+
+city_pop_total
+city_wide_percentages
+
+```
+
+According to the [Census.gov website](https://www.census.gov/quickfacts/fact/table/losangelescitycalifornia,losangelescountycalifornia/POP010210), Los Angeles had a population of 3.79 million people in 2010. This is very close to the 3.73 million reported in our census data set from the neighborhood council. The percentages by each ethnicity also match well. It looks like our calculation for the hispanic population will work.
+
+###Complete stops data
+Now, let's combine all ethnicities that represent less than 2% of the population as "other." We'll change the ethnicity column in stops_data but leave the ethnicity_code column alone in case we need the original values later. Then write the results to a csv. 
+```{r}
+unique(stops_data$ethnicity)
+stops_data <- stops_data %>% 
+  mutate(ethnicity = ifelse(ethnicity %in% c("OTHER", "AMERICAN INDIAN", "MULTI-DESCENTS"), "OTHER", ethnicity))
+unique(stops_data$ethnicity)
+
+```
+## Create data sets 
+### Ethnicity by division 
+Create some data sets: one with stop percentage by ethnicity for each division for all years. The second will have the same data broken out by year.  For each data set, add data with the ethnicity data by division populations for the neighborhood.  
+```{r}
+stops_summary_all_years <- stops_data %>% 
+  filter(!is.na(stop_division)) %>%
+  group_by(stop_division, ethnicity) %>%
+  summarise(ethnicity_count = n()) %>%
+  mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count)) %>%
+  mutate(location = "stops") %>%
+  rename(division = stop_division)
+
+stops_summary_ethnicity_totals_all_years <- stops_data %>% 
+  filter(!is.na(stop_division)) %>%
+  group_by(ethnicity) %>%
+  summarise(ethnicity_count = n()) %>%
+  mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count)) %>%
+  mutate(location = "stops") %>% 
+  mutate(division = "CITY TOTAL")
+
+stops_summary_ethnicity_totals_all_years <- stops_summary_ethnicity_totals_all_years[c(5,1,2,3,4)]
+stops_summary_all_years <- bind_rows(stops_summary_all_years, stops_summary_ethnicity_totals_all_years)
+
+stops_summary_by_year <- stops_data %>% 
+  filter(!is.na(stop_division)) %>%
+  group_by(stop_division, year, ethnicity) %>%
+  summarise(ethnicity_count = n()) %>%
+  mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count)) %>%
+  mutate(location = "stops") %>%
+  rename(division = stop_division)
+
+stops_summary_ethnicity_totals_by_year <- stops_data %>% 
+  filter(!is.na(stop_division), year != 1900) %>%
+  group_by(year, ethnicity) %>%
+  summarise(ethnicity_count = n()) %>%
+  mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count)) %>%
+  mutate(location = "stops") %>%
+  mutate(division = "CITY TOTAL")
+
+stops_summary_ethnicity_totals_by_year <- stops_summary_ethnicity_totals_by_year[c(6,1,2,3,4,5)]
+stops_summary_by_year <- bind_rows(stops_summary_by_year, stops_summary_ethnicity_totals_by_year)
+
+#division_populations_all so that it is in the same form as stops_summary. Call it division_pop_gathered
+division_counts <- division_populations_all[1:7] %>% 
+  rename(WHITE = White_pop, BLACK = Black_pop, ASIAN = Asian_pop, HISPANIC = Hispanic_pop, OTHER = Other_pop) %>%
+  gather("ethnicity", "ethnicity_count", 2:7) 
+division_percents <- division_populations_all %>%
+  select(1,8:12) %>%
+  rename(WHITE = white_percent, BLACK = black_percent, ASIAN = asian_percent, HISPANIC = hispanic_percent, OTHER = other_percent)  %>%
+  gather("ethnicity", "ethnicity_percent", 2:6)
+
+division_pop_gathered <- left_join(division_counts,division_percents) %>%
+  mutate(location = "population")
+
+stops_summary_all_years_with_pop <- bind_rows(stops_summary_all_years, division_pop_gathered)
+stops_summary_by_year_with_pop <- bind_rows(stops_summary_by_year, division_pop_gathered)
+
+
+```
+###Stop type 
+Create some data sets for stop type. 
+
+```{r}
+#Get the percentage of each stop type broken down by ethnicity
+stop_type_by_ethnicity_citywide_all_years <- stops_data %>% 
+  filter(!is.na(stop_type)) %>%
+  group_by(stop_type, ethnicity) %>%
+  summarise(ethnicity_count = n()) %>%
+  mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count)) %>%
+  mutate(division = "CITY TOTAL")
+
+#Add city-wide total 
+stop_type_by_ethnicity_citywide_all_years <- 
+  division_pop_gathered %>%
+  filter(division == "CITY TOTAL", !is.na(ethnicity_percent)) %>%
+  rename(stop_type = location) %>%
+  bind_rows(stop_type_by_ethnicity_citywide_all_years)
+
+stop_type_by_ethnicity_citywide_by_year <- stops_data %>% 
+  filter(!is.na(stop_type), year >= 2010) %>%
+  group_by(year, stop_type, ethnicity) %>%
+  summarise(ethnicity_count = n()) %>%
+  mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count)) %>%
+  mutate(division = "CITY TOTAL")
+
+
+#Get the percentage of each ethnicity broken down by stop type
+ethnicity_by_stop_type_citywide_all_years <- stops_data %>% 
+  filter(!is.na(stop_type)) %>%
+  group_by(ethnicity, stop_type) %>%
+  summarise(ethnicity_count = n()) %>%
+  mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count)) #%>%
+  #mutate(division = "CITY TOTAL")
+
+ethnicity_by_stop_type_citywide_all_years <-
+  bind_rows(ethnicity_by_stop_type_citywide_all_years, 
+            ethnicity_by_stop_type_citywide_all_years %>% 
+              group_by(stop_type) %>%
+              summarize(ethnicity_count = sum(ethnicity_count)) %>%
+              mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count)) %>% 
+              mutate(ethnicity = "ALL")
+            )
+#Get the percentage of each ethnicity broken down by stop type for each division and year
+ethnicity_by_stop_type_divisions_by_year <- stops_data %>%
+  filter(!is.na(stop_type), !is.na(stop_division), year >= 2010) %>%
+  group_by(stop_division, year, ethnicity, stop_type) %>%
+  summarise(ethnicity_count = n()) %>%
+  mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count)) %>%
+  rename(division = stop_division)
+
+ethnicity_by_stop_type_divisions_by_year <- 
+  bind_rows(ethnicity_by_stop_type_divisions_by_year,
+            stops_data %>% 
+              filter(!is.na(stop_type), !is.na(stop_division)) %>%
+              group_by(stop_division, year, stop_type) %>%
+              summarise(ethnicity_count = n()) %>%
+              mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count)) %>%
+              mutate(ethnicity = "ALL") %>%
+              rename(division = stop_division)
+            )
+
+#Get a table of vehicular stop percentage by year for each division:
+division_vehicular_stop_percentage_by_year <-
+  ethnicity_by_stop_type_divisions_by_year %>% 
+  group_by(division, year, stop_type) %>% 
+  summarise(ethnicity_count = sum(ethnicity_count)) %>% 
+  mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count)) %>% 
+  filter(stop_type == "VEH") %>%
+  rename(vehicular_stop_percent = ethnicity_percent) %>%
+  filter(!is.na(year)) 
+
+division_vehicular_stop_percentage_all_years <- 
+  ethnicity_by_stop_type_divisions_by_year %>% 
+  group_by(year, stop_type) %>% 
+  summarise(ethnicity_count = sum(ethnicity_count)) %>% 
+  mutate(ethnicity_percent = ethnicity_count/sum(ethnicity_count)) %>% 
+  filter(stop_type == "VEH") %>%
+  rename(vehicular_stop_percent = ethnicity_percent) %>%
+  filter(!is.na(year)) %>% 
+  mutate(division = "CITY TOTAL")
+
+division_vehicular_stop_percentage_by_year <-
+  bind_rows(division_vehicular_stop_percentage_by_year, division_vehicular_stop_percentage_all_years)
+
+division_vehicular_stop_percentage_by_year$stop_type = NULL
+division_vehicular_stop_percentage_by_year$ethnicity_count = NULL
+
+```
+###Officers
+Create some officer-based data sets.
+```{r}
+officer_total_stops_by_year <- stops_data %>% 
+  filter(!is.na(stop_division), !is.na(year)) %>%
+  group_by(stop_division, officer_1_serial, year) %>% 
+  summarise(stops_count = n()) %>%
+  rename(division = stop_division)
+
+officer_black_stops_by_division_and_year <- stops_data %>% 
+  filter(!is.na(stop_division), !is.na(officer_1_serial), !is.na(year), ethnicity =="BLACK") %>%
+  group_by(stop_division, officer_1_serial, year) %>% 
+  summarise(black_stops = n()) %>%
+  rename(division = stop_division) %>%
+  left_join(officer_total_stops_by_year) %>%
+  rename(total_stops = stops_count) %>%
+  mutate(officer_black_stop_percent = black_stops/total_stops) %>%
+  left_join(select(division_pop, division, BLACK)) %>%
+  rename(division_black__population_percent = BLACK) %>%
+  left_join(select(filter(stops_summary_by_year, ethnicity == "BLACK", location == "stops"), division, ethnicity_percent)) %>%
+  rename(division_black_stop_percent = ethnicity_percent)
+
+```
+###Division summary
+Create a data set for a summary of each division.
+```{r}
+division_stop_ethnicities <-  filter(stops_summary_by_year, location == "stops", year >= 2010)
+division_stop_ethnicities$location = NULL
+
+division_stop_ethnicity_counts <- division_stop_ethnicities %>%
+  select(1,2,3,4) %>%
+  spread(key = ethnicity, value = ethnicity_count) %>%
+  rename(asian_stop_count = ASIAN, black_stop_count = BLACK, hispanic_stop_count = HISPANIC, other_stop_count = OTHER, white_stop_count = WHITE)
+division_stop_ethnicity_percents <- division_stop_ethnicities %>%
+  select(1,2,3,5) %>%
+  spread(key = ethnicity, value = ethnicity_percent) %>%
+  rename(asian_stop_percent = ASIAN, black_stop_percent = BLACK, hispanic_stop_percent = HISPANIC, other_stop_percent = OTHER, white_stop_percent = WHITE)
+
+division_by_year_summary <-
+  left_join(division_stop_ethnicity_counts, division_stop_ethnicity_percents) %>% 
+  left_join(division_populations_all) %>%
+  rename(asian_pop_percent = asian_percent, black_pop_percent = black_percent, hispanic_pop_percent = hispanic_percent, 
+         other_pop_percent = other_percent, white_pop_percent = white_percent) %>%
+  mutate(total_stop_count = asian_stop_count + black_stop_count + hispanic_stop_count + other_stop_count + white_stop_count) %>%
+  mutate(stop_to_pop_ratio = total_stop_count / total_pop) %>%
+  left_join(division_vehicular_stop_percentage_by_year)
+  
+write_csv(division_by_year_summary, path = "C:/Users/lahebert.REDMOND/Documents/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/division_by_year_summary.csv")
+```
+## City-wide graphs
+### City-wide ethnicity breakdown
+Start by graphing ethnicity percentages by populations and stops city-wide 
+```{r, echo=FALSE}
+stops_summary_all_years_with_pop %>% 
+  filter(division == "CITY TOTAL",  ethnicity != "total_pop", location == "population") %>%
+    ggplot(aes(x=ethnicity, y = ethnicity_percent)) + 
+    geom_bar(aes(fill = location), stat = 'identity', position = 'dodge') +
+    ggtitle("Ethnicity distributions")
+
+stops_summary_all_years_with_pop %>% 
+  filter(division == "CITY TOTAL",  ethnicity != "total_pop") %>%
+    ggplot(aes(x=ethnicity, y = ethnicity_percent)) + 
+    geom_bar(aes(fill = location), stat = 'identity', position = 'dodge') +
+    ggtitle("Ethnicity distributions")
+
+```
+###Vehicular verses pedestrian stops
+Now let's look at the stop type data. 
+```{r, echo=FALSE}
+ggplot(stop_type_by_ethnicity_citywide_all_years, aes(x= ethnicity, y = ethnicity_percent)) + 
+  geom_bar(aes(fill=stop_type), stat= 'identity', position='dodge') +
+  ggtitle("Ethnicity by stop type")
+ggplot(ethnicity_by_stop_type_citywide_all_years, aes(x= ethnicity, y = ethnicity_percent)) + 
+  geom_bar(aes(fill=stop_type), stat= 'identity', position='dodge') +
+  ggtitle("Stop type by ethnicity")
+
+```
+
+###Trend in black stops
+Let's graph the percentage of stops that are for the black population by year, with a regression line. Then we'll add the regression parameters. 
+```{r, echo=FALSE}
+stops_summary_by_year_with_pop %>% 
+  filter(division == "CITY TOTAL", ethnicity == "BLACK", location == "stops", year != 2019) %>%
+  ggplot(aes(x = year, y = ethnicity_percent)) + geom_point() + 
+  geom_smooth(method = 'lm', formula = y~x) +
+  ggtitle("Black Stops")
+
+summary(lm(ethnicity_percent ~ year, filter(stops_summary_by_year_with_pop, division == "CITY TOTAL", ethnicity == "BLACK", location == "stops")))
+
+```
+###Ethnicity breakdown by division
+The percentage of stops of black people is increasing by about 0.8 percentage points a year. Let's look at the ethnicity breakdowns for each of the divisions. 
+```{r, echo=FALSE}
+
+#graph it:
+ggplot(stops_summary_all_years_with_pop, aes(x=ethnicity, y = ethnicity_percent)) + geom_bar(aes(fill = location), stat = 'identity', position = 'dodge') + facet_grid(division ~.)
+
+graph_district_distributions <- function(x) {
+  stops_summary_all_years_with_pop %>% 
+    filter(division == unique(stops_summary_all_years_with_pop$division)[x],  ethnicity != "total_pop") %>%
+    ggplot(aes(x=ethnicity, y = ethnicity_percent)) + 
+    geom_bar(aes(fill = location), stat = 'identity', position = 'dodge') +
+    ggtitle(unique(stops_summary_all_years_with_pop$division)[x])
+}
+ 
+# for (i in 1:length(unique(stops_summary_all_years$division))) {
+#   graph_district_distributions(i)
+# }
+
+graph_district_distributions(1)
+graph_district_distributions(2)
+graph_district_distributions(3)
+graph_district_distributions(4)
+graph_district_distributions(5)
+graph_district_distributions(6)
+graph_district_distributions(7)
+graph_district_distributions(8)
+graph_district_distributions(9)
+graph_district_distributions(10)
+graph_district_distributions(11)
+graph_district_distributions(12)
+graph_district_distributions(13)
+graph_district_distributions(14)
+graph_district_distributions(15)
+graph_district_distributions(16)
+graph_district_distributions(17)
+graph_district_distributions(18)
+graph_district_distributions(19)
+graph_district_distributions(20)
+graph_district_distributions(21)
+graph_district_distributions(22)
+```
+
+###Black stops by division
+Try some more graphs. Plot the black population verses the number of black stops for each division. Then plot the population percentage verses stops percentage by division for blacks.
+
+```{r, echo=FALSE}
+stops_summary_all_years_with_pop %>% 
+  select(1,2,3,5) %>%
+  filter(ethnicity == "BLACK", division != "CITY TOTAL") %>%
+  spread(key = location, value = ethnicity_count) %>%
+  ggplot(aes(x=population, y=stops)) + 
+  geom_point() +
+  geom_smooth(method = 'lm', formula = y~x) + 
+  ggtitle("Black counts by division ")
+
+
+stops_summary_all_years_with_pop %>% 
+  select(1,2,4,5) %>%
+  filter(ethnicity == "BLACK", division != "CITY TOTAL") %>%
+  spread(key = location, value = ethnicity_percent) %>%
+  ggplot(aes(x=population, y=stops)) + 
+    geom_point() +
+    geom_smooth(method = 'lm', formula = y~x) + 
+  ggtitle("Black percentages by division ")
+
+stops_summary_all_years_with_pop %>% 
+  select(1,2,4,5) %>%
+  filter(ethnicity == "BLACK", division != "CITY TOTAL") %>%
+  spread(key = location, value = ethnicity_percent) %>%
+  ggplot(aes(x=population, y=stops)) + 
+    geom_point() +
+    ylim(0,0.7) + xlim(0,.7) +
+  geom_abline(slope = 1, intercept = 0, color = 'red') +
+  ggtitle("Black percentages by division")
+
+# Line of fairness graph: 
+stops_summary_all_years_with_pop %>% 
+    ggplot() + ylim(0,0.7) + xlim(0,.7) +
+    geom_abline(slope = 1, intercept = 0, color = 'red') +
+    ggtitle("Black percentages by division") +
+    xlab("population") + ylab("stops")
+```
+
+###All ethnicity stops by division 
+Let's look at the percentages graph for all ethnicities
+```{r, echo=FALSE}
+stops_summary_all_years_with_pop %>% 
+  select(1,2,4,5) %>%
+  filter(ethnicity != "total_pop", division != "CITY TOTAL") %>%
+  spread(key = location, value = ethnicity_percent) %>% 
+  ggplot(aes(x=population, y= stops, col = ethnicity)) + 
+  geom_point() + 
+  ggtitle("Division Ethnicities Stops by Population Percentage")
+```
+
+##Division Analysis graphs
+
+###Graph division trends
+Graph the trend in black stops for each division and output the summary for the linear regression line. 
+```{r echo=FALSE}
+
+division_black_trend_graph <- function(div) {
+  stops_summary_by_year_with_pop %>% 
+  filter(division == div, ethnicity == "BLACK", location == "stops", year != 2019) %>%
+  ggplot(aes(x = year, y = ethnicity_percent)) + geom_point() + 
+  geom_smooth(method = 'lm', formula = y~x) +
+  ggtitle(paste(div,"Black Stops"))
+}
+
+division_black_lm_summary <- function(div) {
+ summary(lm(ethnicity_percent ~ year, filter(stops_summary_by_year_with_pop, division == div, ethnicity == "BLACK", location == "stops"))) 
+}
+
+division_black_trend_graph("SOUTHEAST")
+division_black_lm_summary("SOUTHEAST")
+
+division_black_trend_graph("SOUTHWEST")
+division_black_lm_summary("SOUTHWEST")
+
+division_black_trend_graph("CENTRAL")
+division_black_lm_summary("CENTRAL")
+
+division_black_trend_graph("NEWTON")
+division_black_lm_summary("NEWTON")
+
+division_black_trend_graph("HOLLYWOOD")
+division_black_lm_summary("HOLLYWOOD")
+
+division_black_trend_graph("OLYMPIC")
+division_black_lm_summary("OLYMPIC")
+
+division_black_trend_graph("77TH STREET")
+division_black_lm_summary("77TH STREET")
+
+division_black_trend_graph("WILSHIRE")
+division_black_lm_summary("WILSHIRE")
+
+division_black_trend_graph("PACIFIC")
+division_black_lm_summary("PACIFIC")
+
+division_black_trend_graph("HARBOR")
+division_black_lm_summary("HARBOR")
+
+division_black_trend_graph("DEVONSHIRE")
+division_black_lm_summary("DEVONSHIRE")
+
+division_black_trend_graph("NORTH HOLLYWOOD")
+division_black_lm_summary("NORTH HOLLYWOOD")
+
+division_black_trend_graph("TOPANGA")
+division_black_lm_summary("TOPANGA")
+
+division_black_trend_graph("VAN NUYS")
+division_black_lm_summary("VAN NUYS")
+
+division_black_trend_graph("RAMPART")
+division_black_lm_summary("RAMPART")
+
+division_black_trend_graph("WEST LOS ANGELES")
+division_black_lm_summary("WEST LOS ANGELES")
+
+division_black_trend_graph("WEST VALLEY")
+division_black_lm_summary("WEST VALLEY")
+
+division_black_trend_graph("FOOTHILL")
+division_black_lm_summary("FOOTHILL")
+
+division_black_trend_graph("NORTHEAST")
+division_black_lm_summary("NORTHEAST")
+
+division_black_trend_graph("MISSION")
+division_black_lm_summary("MISSION")
+
+division_black_trend_graph("HOLLENBECK")
+division_black_lm_summary("HOLLENBECK")
+
+division_black_trend_graph("CITY TOTAL")
+division_black_lm_summary("CITY TOTAL")
+
+```
+
+###Yearly black stops by division
+For each year in our data set, plot the black population verses the number of black stops for each division. 
+```{r echo=FALSE}
+graph_black_percentages_divisions_year <- function(yr) {
+  stops_summary_by_year_with_pop %>%
+  filter(division != "CITY TOTAL", year == yr | location == "population", ethnicity == "BLACK") %>%
+    ungroup() %>%
+  select(1,3,5,6) %>%
+  spread(key = location, value = ethnicity_percent) %>%
+  ggplot(aes(x=population, y=stops, col = division)) + 
+    geom_point() + ylim(0,.7) +
+  ggtitle(paste("Black percentages by division ", yr))
+}
+
+graph_black_percentages_divisions_year(2010)
+graph_black_percentages_divisions_year(2011)
+graph_black_percentages_divisions_year(2012)
+graph_black_percentages_divisions_year(2013)
+graph_black_percentages_divisions_year(2014)
+graph_black_percentages_divisions_year(2015)
+graph_black_percentages_divisions_year(2016)
+graph_black_percentages_divisions_year(2017)
+graph_black_percentages_divisions_year(2018)
+
+```
+###Black percentages and counts 2018
+Plot the black population verses the number of black stops for each division in 2018. Then plot the population percentage verses stops percentage by division for blacks, also in 2018.
+```{r echo=FALSE}
+stops_summary_by_year_with_pop %>%
+  filter(division != "CITY TOTAL", year == 2018 | location == "population", ethnicity == "BLACK") %>%
+  ungroup() %>%
+  select(1,3,5,6) %>%
+  spread(key = location, value = ethnicity_percent) %>%
+  ggplot(aes(x=population, y=stops)) + 
+    geom_point() +
+  geom_smooth(method = 'lm', formula = y~x) +
+  ggtitle("Black percentages by division 2018")
+
+stops_summary_by_year_with_pop %>%
+  filter(division != "CITY TOTAL", year == 2018 | location == "population", ethnicity == "BLACK") %>%
+  ungroup() %>%
+  select(1,3,4,6) %>%
+  spread(key = location, value = ethnicity_count) %>%
+  ggplot(aes(x=population, y=stops)) + 
+    geom_point() +
+  geom_smooth(method = 'lm', formula = y~x) +
+  ggtitle("Black counts by division 2018")
+
+stops_summary_by_year_with_pop %>%
+  filter(division != "CITY TOTAL", year == 2018 | location == "population", ethnicity == "BLACK") %>%
+  ungroup() %>%
+  select(1,3,5,6) %>%
+  spread(key = location, value = ethnicity_percent) %>%
+  ggplot(aes(x=population, y=stops, col = division)) + 
+    geom_point() +
+  ggtitle("Black percentages by division 2018")
+
+stops_summary_by_year_with_pop %>%
+  filter(division != "CITY TOTAL", year == 2018 | location == "population", ethnicity == "BLACK") %>%
+  ungroup() %>%
+  select(1,3,4,6) %>%
+  spread(key = location, value = ethnicity_count) %>%
+  ggplot(aes(x=population, y=stops, col = division)) + 
+    geom_point() +
+  ggtitle("Black counts by division 2018")
+```
+
+###Ethnicity distributions 2018 - problem divisions
+Divisions to focus on:
+* Southeast - it's above both the percent and count trend lines
+* Central - it's on the percent line but way above the count line due to very large ratio of stops to population
+* Newton - it's above both the percent and count trend lines
+* Hollywood -it's above both the percent and count trend lines
+* Olympic - it's above both the percent and count trend lines
+* West Los Angeles - it's above the percent trend line 
+
+Graph the ethnicity breakdown for each of the problem divisions
+
+```{r echo=FALSE}
+graph_division__year_distributions <- function(div, yr) {
+  data <- stops_summary_by_year_with_pop
+  index <- data$location == "population"
+  data$year[index] <- "ALL"
+  
+  data %>% 
+    filter(division == div, year == yr | year== "ALL", ethnicity != "total_pop") %>% 
+    ggplot(aes(x=ethnicity, y = ethnicity_percent)) + 
+    geom_bar(aes(fill = location), stat = 'identity', position = 'dodge') + 
+    ggtitle(paste("Ethnicity distributions", div,yr))
+}
+
+graph_division__year_distributions("SOUTHEAST", 2018)
+graph_division__year_distributions("HOLLYWOOD", 2018)
+graph_division__year_distributions("WEST LOS ANGELES", 2018)
+graph_division__year_distributions("CENTRAL", 2018)
+graph_division__year_distributions("NEWTON", 2018)
+graph_division__year_distributions("OLYMPIC", 2018)
+
+```
+
+###Officers in problem divisions
+Graph a histogram of the officers in each of the problem divisions. The histograms will show the number of officers with each bin of the percentage of stops of blacks. We will only include officers 
+```{r echo=FALSE}
+officer_black_stops_by_division_and_year <- read_csv("~/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/officer_black_stops_by_division_and_year.csv")
+
+#officer_black_stops_by_division_and_year %>%
+#  filter(year == 2018, division == "HOLLYWOOD") %>%
+#  ggplot(aes(total_stops)) + geom_histogram(binwidth = 100)
+
+off_div_black_perc_hist <- function(y, div, bw) {
+  officer_black_stops_by_division_and_year %>%
+    filter(year == y, division == div, total_stops >= 100) %>%
+    ggplot(aes(officer_black_stop_percent)) + 
+      geom_histogram(binwidth = bw, fill="#C77CFF") + 
+      ggtitle(paste("Officer counts for", div, "division"))
+}
+
+off_div_black_perc_hist(2018, "SOUTHEAST", 0.05)
+off_div_black_perc_hist(2018, "HOLLYWOOD", 0.05)
+off_div_black_perc_hist(2018, "WEST LOS ANGELES", 0.05)
+off_div_black_perc_hist(2018, "CENTRAL", 0.05)
+off_div_black_perc_hist(2018, "NEWTON", 0.05)
+off_div_black_perc_hist(2018, "OLYMPIC", 0.05)
+
+```
+
+###Identify officers for anti-bias training
+
+Identify officers to recommened for anti-bias training. Thresholds for officer_black_stop_percent were determined by looking at the histograms and finding a good cutoff point above the average for that division's value. We'll put together a list of these officers serial numbers, which divisions they're identified from and their stop counts and percentages. Next, we'll identify officers that appear more than once in this list and recommendthem for extra training. 
+```{r}
+southeast_officers_2018 <- filter(officer_black_stops_by_division_and_year, 
+                                  division == "SOUTHEAST", year == 2018, total_stops >= 100, officer_black_stop_percent >= 0.625)
+central_officers_2018 <- filter(officer_black_stops_by_division_and_year, 
+                                  division == "CENTRAL", year == 2018, total_stops >= 100, officer_black_stop_percent >= 0.425)
+newton_officers_2018 <- filter(officer_black_stops_by_division_and_year, 
+                                  division == "NEWTON", year == 2018, total_stops >= 100, officer_black_stop_percent >= 0.325)
+hollywood_officers_2018 <- filter(officer_black_stops_by_division_and_year, 
+                                  division == "HOLLYWOOD", year == 2018, total_stops >= 100, officer_black_stop_percent >= 0.375)
+olympic_officers_2018 <- filter(officer_black_stops_by_division_and_year, 
+                                  division == "OLYMPIC", year == 2018, total_stops >= 100, officer_black_stop_percent >= 0.225)
+westLA_officers_2018 <- filter(officer_black_stops_by_division_and_year, 
+                                  division == "WEST LOS ANGELES", year == 2018, total_stops >= 100, officer_black_stop_percent >= 0.225)
+
+officers_for_bias_training <- bind_rows(
+  southeast_officers_2018, 
+  central_officers_2018,
+  newton_officers_2018,
+  hollywood_officers_2018,
+  olympic_officers_2018,
+  westLA_officers_2018)
+
+extra_targeting <- officers_for_bias_training %>% 
+  group_by(officer_1_serial) %>% 
+  summarise(count = n()) %>% 
+  filter(count > 1)
+
+number_of_officers_for_training <- length(unique(officers_for_bias_training$officer_1_serial))
+number_of_extra_training_officers <- length(unique(extra_targeting$officer_1_serial))
+number_of_total_officers_2018 <- length(unique(filter(stops_data, year == 2018)$officer_1_serial))
+
+write_csv(officers_for_bias_training, path = "C:/Users/lahebert.REDMOND/Documents/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/officers_for_bias_training.csv")
+
+write_csv(extra_targeting, path = "C:/Users/lahebert.REDMOND/Documents/Learning/Springboard/Introduction to Data Science/Capstone/Data/Output/extra_targeting.csv")
+
+```
+##Conclusion
+Of the 5994 officers represented in the 2018 stops data, we've identified 284 for anti-bias training. We recommend extra training for four of those officers
